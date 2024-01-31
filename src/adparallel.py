@@ -16,7 +16,14 @@ import multiprocessing
 
 
 class ADParallel(object):
-    def __init__(self, atdpath, mglpath, receptor, ligand, db, wpath):
+    def __init__(
+        self,
+        atdpath: str,
+        mglpath: str,
+        receptor: str,
+        ligand: str,
+        db: str,
+        wpath: str):
         if len(atdpath) == 0:
             self.atdpath = "/usr/bin/"
         else:
@@ -36,6 +43,7 @@ class ADParallel(object):
         self.speed = "slow"
         self.atd = True
         self.vina = True
+        self.smina_variant = True
 
     def readAtomTypes(self, rec_mol):
         # Read the atom types
@@ -187,8 +195,12 @@ class ADParallel(object):
         return os.system("%s %s" % (atd_path, cmd))
 
     def RunVina(self, cmd):
-        vina_path = str(Path("%s/vina" % (self.atdpath)).absolute())
-        return os.system("%s %s" % (vina_path, cmd))
+        bin_path = None
+        if self.smina_variant is True:
+            bin_path = f'{Path(__file__).parent.parent}/third_party/smina.static'
+        else:
+            bin_path = str(Path("%s/vina" % (self.atdpath)).absolute())
+        return os.system("%s %s" % (bin_path, cmd))
 
     def ReadOutput(self, ofile):
         r = []
@@ -231,6 +243,8 @@ class ADParallel(object):
         for line in f:
             if getres is True:
                 if "Writing output ... done." in line:
+                    getres = False
+                elif 'Refine time' in line:
                     getres = False
                 else:
                     v = molop.nsplit(line.strip(), " ")
@@ -328,6 +342,7 @@ class ADParallel(object):
                 vinalogout.append("%s/vina_log.txt" % (mpath))
                 vc += " --out \"%s/dock_confs_%s.pdbqt\" >> \"%s\"" % (mpath, molname, vinalogout[-1])
                 vinacmdlst.append(vc)
+
         shutil.rmtree(tmppath)
         # Run AutoGrid
         ncpu = multiprocessing.cpu_count()
@@ -338,7 +353,7 @@ class ADParallel(object):
         pool = multiprocessing.Pool(ncpu)
         pool.map(self.RunAutoDock, adcmdlst)
 
-        # RunVina
+        # RunVina or Smina
         pool = multiprocessing.Pool(ncpu)
         pool.map(self.RunVina, vinacmdlst)
 

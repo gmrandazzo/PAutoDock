@@ -31,8 +31,9 @@ def main():
     p.add_argument('--wdir', default=None, type=str, help='work directory')
     p.add_argument('--smode', default="fast", type=str, help='screening mode')
     p.add_argument('--out', default=None, type=str, help='screening output')
-    p.add_argument('--atd', default=True, type=str, help='Autodock ON')
-    p.add_argument('--vina', default=True, type=str, help='Vina ON')
+    p.add_argument('--atd', default='OFF', type=str, help='Autodock ON')
+    p.add_argument('--vina', default='ON', type=str, help='Vina ON')
+    p.add_argument('--smina', default='OFF', type=str, help='Smina ON')
     args = p.parse_args(sys.argv[1:])
 
     if args.receptor is None or args.ligand is None and args.cx is None:
@@ -52,6 +53,7 @@ def main():
         print("                --out [screening output]")
         print("                --atd [ON;OFF]")
         print("                --vina [ON;OFF]")
+        print("                --smina [ON;OFF]")
     else:
         # Load import pdb; pdb.set_trace()#
         dock = ADParallel("", args.mglpath, args.receptor,
@@ -63,9 +65,16 @@ def main():
 
         if args.atd == "OFF":
             dock.atd = False
-
-        if args.vina == "OFF":
+    
+        if args.vina == "ON" and args.smina == "OFF":
+            dock.vina = True
+            dock.smina_variant = False
+        elif args.vina == "OFF" and args.smina == "ON":
+            dock.vina = True
+            dock.smina_variant = True
+        else:
             dock.vina = False
+            dock.smina_variant = False    
 
         dock.speed = args.smode
         dock.gsize_x = args.gx
