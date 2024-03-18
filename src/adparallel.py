@@ -5,7 +5,8 @@ Provides the basic code to run autodock in parallel on a machine.
 """
 
 #!/usr/bin/env python3
-
+import logging
+import math
 import molop
 import multimol2op
 import os
@@ -16,14 +17,7 @@ import multiprocessing
 
 
 class ADParallel(object):
-    def __init__(
-        self,
-        atdpath: str,
-        mglpath: str,
-        receptor: str,
-        ligand: str,
-        db: str,
-        wpath: str):
+    def __init__(self, atdpath, mglpath, receptor, ligand, db, wpath):
         if len(atdpath) == 0:
             self.atdpath = "/usr/bin/"
         else:
@@ -43,7 +37,6 @@ class ADParallel(object):
         self.speed = "slow"
         self.atd = True
         self.vina = True
-        self.smina_variant = True
 
     def readAtomTypes(self, rec_mol):
         # Read the atom types
@@ -195,12 +188,8 @@ class ADParallel(object):
         return os.system("%s %s" % (atd_path, cmd))
 
     def RunVina(self, cmd):
-        bin_path = None
-        if self.smina_variant is True:
-            bin_path = f'{Path(__file__).parent.parent}/third_party/smina.static'
-        else:
-            bin_path = str(Path("%s/vina" % (self.atdpath)).absolute())
-        return os.system("%s %s" % (bin_path, cmd))
+        vina_path = str(Path("%s/vina" % (self.atdpath)).absolute())
+        return os.system("%s %s" % (vina_path, cmd))
 
     def ReadOutput(self, ofile):
         r = []
@@ -235,6 +224,13 @@ class ADParallel(object):
         header.append("Ref. RMSD Average")
         r.append(round(sum(r_rmsd) / float(len(r_rmsd)),3))
         return header, r
+    
+    def LigandPosesBaricentreDistance(self, dock_pdbqt: str) -> float:
+        """
+        Calculate the distance between the ligand and docking pose baricentres.
+        """
+        poses_cc = molop.getMolBaricentre(dock_pdbqt)
+        return math.sqrt((self.cx-poses_cc[0])**2+(self.cy-poses_cc[1])**2+(self.cz-poses_cc[2])**2)
 
     def ReadVinaOutput(self, ofile):
         benergy = []
@@ -243,8 +239,6 @@ class ADParallel(object):
         for line in f:
             if getres is True:
                 if "Writing output ... done." in line:
-                    getres = False
-                elif 'Refine time' in line:
                     getres = False
                 else:
                     v = molop.nsplit(line.strip(), " ")
@@ -261,11 +255,20 @@ class ADParallel(object):
             return 9999., 9999., 9999.
 
     def GenVSOutput(self, vinalogout, dpfout, mnames, otab):
+        """
+        Collect vina results
+        """
         # Collect the vina results
         vbind = []
-        for vout in vinalogout:
+        for i, vout in enumerate(vinalogout):
             avg_b, min_b, max_b = self.ReadVinaOutput(vout)
-            vbind.append([avg_b, min_b, max_b])
+            try:
+                dock_poses = f'{Path(vout).parent.absolute()}/dock_confs_{mnames[i]}.pdbqt'
+                lp_dst = self.LigandPosesBaricentreDistance(dock_poses)
+            except FileNotFoundError as err:
+                logging.error("%s not found", err)
+                lp_dst = 9999.0
+            vbind.append([avg_b, min_b, max_b, lp_dst])
         # Collect results
         fo = open(otab, "w")
         firstline = True
@@ -281,11 +284,12 @@ class ADParallel(object):
                 for j in range(len(h)):
                     fo.write("%s;" % (h[j]))
                 fo.write("Avg. vina Binding Energy;")
-                fo.write("Min vina Binding Energy;Max vina Binding Energy\n")
+                fo.write("Min vina Binding Energy;Max vina Binding Energy;")
+                fo.write("Template-Ligand Baricenter Distance (docking pose check)\n")
             fo.write("%s;" % (mnames[i]))
             for j in range(len(r)):
                 fo.write("%s;" % (r[j]))
-            fo.write("%f;%f;%f\n" % (vbind[i][0], vbind[i][1], vbind[i][2]))
+            fo.write("%f;%f;%f;%f\n" % (vbind[i][0], vbind[i][1], vbind[i][2], vbind[i][3]))
         fo.close()
 
     def VS(self, otab):
@@ -297,8 +301,8 @@ class ADParallel(object):
             cc = [self.cx, self.cy, self.cz]
         else:
             # Prepare the ligand
-            lig = molop.Molecule(self.ligand, self.mglpath)
-            cc = lig.getMolCentre()
+            # lig = molop.Molecule(self.ligand, self.mglpath)
+            cc = molop.getMolBaricentre(self.ligand)
         # Prepare the database
         # split multi mol2
         tmppath = tempfile.mkdtemp()
@@ -339,10 +343,13 @@ class ADParallel(object):
                 ss = [self.gsize_x, self.gsize_y, self.gsize_z]
                 vconf_path = self.WriteVinaParams(mpath, cc, ss)
                 vc = "--config \"%s\" --receptor \"%s\" --ligand \"%s\"" % (vconf_path, rec_pdbqt, mol_pdbqt)
-                vinalogout.append("%s/vina_log.txt" % (mpath))
-                vc += " --out \"%s/dock_confs_%s.pdbqt\" >> \"%s\"" % (mpath, molname, vinalogout[-1])
-                vinacmdlst.append(vc)
-
+                vinalogout.append(f'{mpath}/vina_log.txt')
+                # If the log and the docking pose extists then
+                # there is no need to run the calculation
+                if (Path(vinalogout[-1]).exists() is False and 
+                    Path(f'{mpath}/dock_confs_{molname}.pdbqt.txt') is False):
+                    vc += " --out \"%s/dock_confs_%s.pdbqt\" >> \"%s\"" % (mpath, molname, vinalogout[-1])
+                    vinacmdlst.append(vc)
         shutil.rmtree(tmppath)
         # Run AutoGrid
         ncpu = multiprocessing.cpu_count()
@@ -353,7 +360,7 @@ class ADParallel(object):
         pool = multiprocessing.Pool(ncpu)
         pool.map(self.RunAutoDock, adcmdlst)
 
-        # RunVina or Smina
+        # RunVina
         pool = multiprocessing.Pool(ncpu)
         pool.map(self.RunVina, vinacmdlst)
 

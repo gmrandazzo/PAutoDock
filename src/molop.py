@@ -5,13 +5,32 @@ Provides the basic operation for molecular files.
 
 #!/usr/bin/env python3
 
-
+import logging
 from pathlib import Path
 import subprocess
 
 
 def nsplit(s, delim=None):
     return [x for x in s.split(delim) if x]
+
+def getMolBaricentre(mol: str) -> tuple:
+    """
+    Get molecular baricentre from a molecule
+    """
+    cc = [0., 0., 0.]
+    n = 0
+    with open(mol, 'r', encoding='utf-8') as f:
+        for line in f:
+            if (("ATOM" in line or "HETATM" in line) and not 'REMARK' in line):
+                try:
+                    items = list(filter(None, str.split(line, " ")))
+                    cc[0] += float(items[6])
+                    cc[1] += float(items[7])
+                    cc[2] += float(items[8])
+                    n += 1
+                except IndexError as err:
+                    logging.error('%s getMolBaricentre problem with %s', err, line)
+    return [cc[i]/float(n) for i in range(len(cc))]
 
 class Receptor(object):
     def __init__(self, receptor, mglpath):
@@ -31,13 +50,10 @@ class Receptor(object):
 
         return str(Path(pdbqt).resolve())
 
-
 class Molecule(object):
     def __init__(self, molecule, mglpath):
         self.molecule = molecule
         self.mglpath = str(Path(mglpath).resolve())
-        self.cc = []
-    
     
     def topdbqt(self, tran0=[]):
         """
@@ -49,7 +65,7 @@ class Molecule(object):
             molname = molname.replace(".mol2", ".pdbqt")
         else:
             molname = molname.replace(".pdb", ".pdbqt")
-        cmd = ("%s -imol2 '%s' -opdbqt -O '%s'" %
+        cmd = ("%s -p gastaiger -imol2 '%s' -opdbqt -O '%s'" %
                (obabel, self.molecule, molname))
         subprocess.call([cmd], shell=True)
         #Translate to the new center
@@ -130,22 +146,3 @@ class Molecule(object):
             fo.close()
         return fpdbqt
 
-    def getMolCentre(self):
-        if len(self.cc) == 0:
-            f = open(self.molecule)
-            self.cc = [0., 0., 0.]
-            n = 0
-            for line in f:
-                if "ATOM" in line or "HETATM" in line:
-                    r = str.split(line.strip())
-                    self.cc[0] += float(r[6])
-                    self.cc[1] += float(r[7])
-                    self.cc[2] += float(r[8])
-                    n += 1
-                else:
-                    continue
-            f.close()
-            self.cc = [self.cc[i]/n for i in range(len(self.cc))]
-            return self.cc
-        else:
-            return self.cc
