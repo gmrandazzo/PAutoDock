@@ -237,7 +237,7 @@ class ADParallel(object):
         f = open(str(Path(ofile).absolute()), "r")
         getres = False
         for line in f:
-            if getres is True:
+            if getres == True:
                 if "Writing output ... done." in line:
                     getres = False
                 else:
@@ -278,7 +278,7 @@ class ADParallel(object):
             if len(dpfout) > 0:
                 if Path(dpfout[i]).is_file():
                     h, r = self.ReadOutput(dpfout[i])
-            if firstline is True:
+            if firstline == True:
                 firstline = False
                 fo.write("Molname;")
                 for j in range(len(h)):
@@ -320,15 +320,15 @@ class ADParallel(object):
             molname = molname_ext.replace(".mol2", "")
             mnames.append(molname)
             mpath = str(Path(self.wpath + "/" + molname).absolute())
-            if Path(mpath).exists() is False:
+            if Path(mpath).exists() == False:
                 os.makedirs(mpath)
-            if Path(mpath + "/" + molname_ext).exists() is False:
+            if Path(mpath + "/" + molname_ext).exists() == False:
                 shutil.move(str(Path(mol2).resolve()), mpath)
 
             mol = molop.Molecule(str(Path(mpath + "/" + molname_ext).absolute()), self.mglpath)
             mol_pdbqt = mol.topdbqt(cc)
             mol_pdbqt_name = str(Path(mol_pdbqt).resolve().name)
-            if self.atd is True:
+            if self.atd == True:
                 gpf_path, dpf_path = self.WriteParamFiles(mpath,
                                                 rec_pdbqt,
                                                 mol_pdbqt_name,
@@ -339,16 +339,15 @@ class ADParallel(object):
                 ad = "-p \"%s\" -l \"%s\"" % (str(dpf_path), dpfout[-1])
                 adcmdlst.append(ad)
 
-            if self.vina is True:
-                ss = [self.gsize_x, self.gsize_y, self.gsize_z]
-                vconf_path = self.WriteVinaParams(mpath, cc, ss)
-                vc = "--config \"%s\" --receptor \"%s\" --ligand \"%s\"" % (vconf_path, rec_pdbqt, mol_pdbqt)
+            if self.vina == True:
                 vinalogout.append(f'{mpath}/vina_log.txt')
-                # If the log and the docking pose extists then
-                # there is no need to run the calculation
-                if (Path(vinalogout[-1]).exists() is False and 
-                    Path(f'{mpath}/dock_confs_{molname}.pdbqt.txt') is False):
-                    vc += " --out \"%s/dock_confs_%s.pdbqt\" >> \"%s\"" % (mpath, molname, vinalogout[-1])
+                if Path(f'{mpath}/dock_confs_{molname}.pdbqt') == False:
+                    # If the log and the docking pose extists then
+                    # there is no need to run the calculation
+                    ss = [self.gsize_x, self.gsize_y, self.gsize_z]
+                    vconf_path = self.WriteVinaParams(mpath, cc, ss)
+                    vc = f'--config "{vconf_path}" --receptor "{rec_pdbqt}" --ligand "{mol_pdbqt}"'
+                    vc += f'--out "{mpath}/dock_confs_{molname}.pdbqt" >> {vinalogout[-1]}'
                     vinacmdlst.append(vc)
         shutil.rmtree(tmppath)
         # Run AutoGrid
