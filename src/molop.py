@@ -23,10 +23,13 @@ def getMolBaricentre(mol: str) -> tuple:
         for line in f:
             if (("ATOM" in line or "HETATM" in line) and not 'REMARK' in line):
                 try:
-                    items = list(filter(None, str.split(line, " ")))
-                    cc[0] += float(items[5])
-                    cc[1] += float(items[6])
-                    cc[2] += float(items[7])
+                    items = list(filter(None, str.split(line.strip(), " ")))
+                    j = 5
+                    if len(items) == 13:
+                        j = 6
+                    cc[0] += float(items[j])
+                    cc[1] += float(items[j+1])
+                    cc[2] += float(items[j+2])
                     n += 1
                 except IndexError as err:
                     logging.error('%s getMolBaricentre problem with %s', err, line)
