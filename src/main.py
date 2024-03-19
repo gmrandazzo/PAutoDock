@@ -18,7 +18,7 @@ def main():
     p.add_argument('--receptor',
                    default=None, type=str,
                    help='receptor')
-    p.add_argument('--ligand', default=None, type=str, help='ligand')
+    p.add_argument('--ligand', default=None, type=str, help='ligand PDB')
     p.add_argument('--cx', default=None, type=float, help='center x')
     p.add_argument('--cy', default=None, type=float, help='center y')
     p.add_argument('--cz', default=None, type=float, help='center z')

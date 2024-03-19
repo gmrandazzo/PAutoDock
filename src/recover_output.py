@@ -18,6 +18,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('--wdir', default=None, type=str, help='work directory')
     p.add_argument('--out', default=None, type=str, help='screening output')
+    p.add_argument('--ligand', default=None, type=str, help='ligand')
     args = p.parse_args(sys.argv[1:])
 
     if args.wdir is None or args.out is None:
@@ -25,8 +26,7 @@ def main():
         print("                --wdir [work path]")
         print("                --out [screening output]")
     else:
-        dock = ADParallel("", None, None, None, None, args.wdir)
-
+        dock = ADParallel("", None, None, args.ligand, None, args.wdir)
         vinalogout = []
         dpfout = []
         mnames = []

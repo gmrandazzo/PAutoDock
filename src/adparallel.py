@@ -230,6 +230,8 @@ class ADParallel(object):
         Calculate the distance between the ligand and docking pose baricentres.
         """
         poses_cc = molop.getMolBaricentre(dock_pdbqt)
+        if int(self.cx) == 0:
+            self.cx, self.cy, self.cz = molop.getMolBaricentre(self.ligand)
         return math.sqrt((self.cx-poses_cc[0])**2+(self.cy-poses_cc[1])**2+(self.cz-poses_cc[2])**2)
 
     def ReadVinaOutput(self, ofile):
@@ -238,16 +240,21 @@ class ADParallel(object):
         getres = False
         for line in f:
             if getres == True:
-                if "Writing output ... done." in line:
+                # Filter double outputs
+                if "Writing output ... done." in line or 'AutoDock Vina' in line:
                     getres = False
                 else:
-                    v = molop.nsplit(line.strip(), " ")
-                    benergy.append(float(v[1]))
+                    try:
+                        v = molop.nsplit(line.strip(), " ")
+                        benergy.append(float(v[1]))
+                    except ValueError as err:
+                        logging.error('Error with file %s', ofile)
             else:
                 if "-----+------------+----------+----------" in line:
                     getres = True
                 else:
                     continue
+
         f.close()
         if len(benergy) > 0:
             return round(sum(benergy) / float(len(benergy)), 3), min(benergy), max(benergy)
@@ -296,15 +303,9 @@ class ADParallel(object):
         # Prepare the receptor
         rec = molop.Receptor(self.receptor, self.mglpath)
         rec_pdbqt = rec.topdbqt()
-        cc = None
-        if self.ligand is None:
-            cc = [self.cx, self.cy, self.cz]
-        else:
-            # Prepare the ligand
-            # lig = molop.Molecule(self.ligand, self.mglpath)
-            cc = molop.getMolBaricentre(self.ligand)
-        # Prepare the database
-        # split multi mol2
+        if self.ligand is not None:
+            self.cx, self.cy, self.cz = molop.getMolBaricentre(self.ligand)
+        # Prepare the database split multi mol2
         tmppath = tempfile.mkdtemp()
         mol2lst = multimol2op.SplitMol2(self.db, tmppath)
         agcmdlst = []
@@ -320,35 +321,44 @@ class ADParallel(object):
             molname = molname_ext.replace(".mol2", "")
             mnames.append(molname)
             mpath = str(Path(self.wpath + "/" + molname).absolute())
-            if Path(mpath).exists() == False:
-                os.makedirs(mpath)
-            if Path(mpath + "/" + molname_ext).exists() == False:
-                shutil.move(str(Path(mol2).resolve()), mpath)
+            if Path(f'{mpath}/dock_confs_{molname}.pdbqt').exists() == False:
+                if Path(mpath).exists() == False:
+                    os.makedirs(mpath)
+                if Path(mpath + "/" + molname_ext).exists() == False:
+                    shutil.move(str(Path(mol2).resolve()), mpath)
 
-            mol = molop.Molecule(str(Path(mpath + "/" + molname_ext).absolute()), self.mglpath)
-            mol_pdbqt = mol.topdbqt(cc)
-            mol_pdbqt_name = str(Path(mol_pdbqt).resolve().name)
-            if self.atd == True:
-                gpf_path, dpf_path = self.WriteParamFiles(mpath,
-                                                rec_pdbqt,
-                                                mol_pdbqt_name,
-                                                cc)
-                ag = "-p \"%s\" -l \"%s.glg\"" % (str(gpf_path), str(gpf_path).replace(".gpf", ""))
-                agcmdlst.append(ag)
-                dpfout.append(str(dpf_path).replace(".dpf", ".dlg"))
-                ad = "-p \"%s\" -l \"%s\"" % (str(dpf_path), dpfout[-1])
-                adcmdlst.append(ad)
+                mol = molop.Molecule(str(Path(mpath + "/" + molname_ext).absolute()), self.mglpath)
+                mol_pdbqt = mol.topdbqt([self.cx, self.cy, self.cz])
+                mol_pdbqt_name = str(Path(mol_pdbqt).resolve().name)
+                if self.atd == True:
+                    gpf_path, dpf_path = self.WriteParamFiles(
+                        mpath,
+                        rec_pdbqt,
+                        mol_pdbqt_name,
+                        [self.cx, self.cy, self.cz]
+                    )
+                    first_arg = str(gpf_path)
+                    second_arg = str(gpf_path).replace(".gpf", "")
+                    ag = f'-p "{first_arg}" -l "{second_arg}.glg"'
+                    agcmdlst.append(ag)
+                    dpfout.append(str(dpf_path).replace(".dpf", ".dlg"))
+                    ad = f'-p "{str(dpf_path)}" -l "{dpfout[-1]}"'
+                    adcmdlst.append(ad)
 
-            if self.vina == True:
-                vinalogout.append(f'{mpath}/vina_log.txt')
-                if Path(f'{mpath}/dock_confs_{molname}.pdbqt') == False:
+                if self.vina == True:
+                    vinalogout.append(f'{mpath}/vina_log.txt')
                     # If the log and the docking pose extists then
                     # there is no need to run the calculation
-                    ss = [self.gsize_x, self.gsize_y, self.gsize_z]
-                    vconf_path = self.WriteVinaParams(mpath, cc, ss)
+                    vconf_path = self.WriteVinaParams(
+                        mpath,
+                        [self.cx, self.cy, self.cz],
+                        [self.gsize_x, self.gsize_y, self.gsize_z]
+                    )
                     vc = f'--config "{vconf_path}" --receptor "{rec_pdbqt}" --ligand "{mol_pdbqt}"'
                     vc += f'--out "{mpath}/dock_confs_{molname}.pdbqt" >> {vinalogout[-1]}'
                     vinacmdlst.append(vc)
+            else:
+                vinalogout.append(f'{mpath}/vina_log.txt')
         shutil.rmtree(tmppath)
         # Run AutoGrid
         ncpu = multiprocessing.cpu_count()
