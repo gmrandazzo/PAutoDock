@@ -24,6 +24,7 @@ def main():
     if args.wdir is None or args.out is None:
         print("\nUsage: %s --receptor [input pdb]" % sys.argv[0])
         print("                --wdir [work path]")
+        print("                --ligand [ligand PDB]")
         print("                --out [screening output]")
     else:
         dock = ADParallel("", None, None, args.ligand, None, args.wdir)
