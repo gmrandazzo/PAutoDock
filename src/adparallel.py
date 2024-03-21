@@ -354,7 +354,7 @@ class ADParallel(object):
                         [self.cx, self.cy, self.cz],
                         [self.gsize_x, self.gsize_y, self.gsize_z]
                     )
-                    vc = f'--config "{vconf_path}" --receptor "{rec_pdbqt}" --ligand "{mol_pdbqt}"'
+                    vc = f'--config "{vconf_path}" --receptor "{rec_pdbqt}" --ligand "{mol_pdbqt}" '
                     vc += f'--out "{mpath}/dock_confs_{molname}.pdbqt" >> {vinalogout[-1]}'
                     vinacmdlst.append(vc)
             else:

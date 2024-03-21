@@ -19,17 +19,19 @@ def getMolBaricentre(mol: str) -> tuple:
     """
     cc = [0., 0., 0.]
     n = 0
+    if ".pdbqt" in mol:
+        j=-5
+    else:
+        j=-4
     with open(mol, 'r', encoding='utf-8') as f:
         for line in f:
             if (("ATOM" in line or "HETATM" in line) and not 'REMARK' in line):
                 try:
+                    # Get the results from back
                     items = list(filter(None, str.split(line.strip(), " ")))
-                    j = 5
-                    if len(items) == 13:
-                        j = 6
-                    cc[0] += float(items[j])
-                    cc[1] += float(items[j+1])
-                    cc[2] += float(items[j+2])
+                    cc[0] += float(items[j-2])
+                    cc[1] += float(items[j-1])
+                    cc[2] += float(items[j])
                     n += 1
                 except IndexError as err:
                     logging.error('%s getMolBaricentre problem with %s', err, line)
