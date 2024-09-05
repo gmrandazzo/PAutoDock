@@ -12,9 +12,11 @@ go to "http://www.gnu.org/licenses/gpl-3.0.en.html"
 Provides the basic operation for molecular files.
 
 """
-import requests
-import tarfile
 import logging
+import tarfile
+
+import requests
+
 
 def download_file(url, destination):
     """
@@ -23,7 +25,7 @@ def download_file(url, destination):
     try:
         response = requests.get(url, stream=True)
         response.raise_for_status()
-        with open(destination, 'wb') as file:
+        with open(destination, "wb") as file:
             for chunk in response.iter_content(chunk_size=8192):
                 file.write(chunk)
         logging.info(f"Downloaded: {destination}")
@@ -32,12 +34,13 @@ def download_file(url, destination):
         return False
     return True
 
+
 def extract_tar_gz(file_path, extract_to):
     """
     Extract a .tar.gz file to a specified directory.
     """
     try:
-        with tarfile.open(file_path, 'r:gz') as tar:
+        with tarfile.open(file_path, "r:gz") as tar:
             tar.extractall(path=extract_to)
         logging.info(f"Extracted: {file_path} to {extract_to}")
     except (tarfile.TarError, IOError) as err:

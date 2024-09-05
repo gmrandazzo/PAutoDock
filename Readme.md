@@ -37,18 +37,18 @@ Ensure that these dependencies are properly installed and accessible from your c
 
 To use PAutodock for parallelizing AutoDock jobs, follow these steps:
 
-1. **Prepare the Receptor and Ligand**: 
+1. **Prepare the Receptor and Ligand**:
    - Ensure you have a receptor file (in PDB format) that represents the target protein or enzyme.
    - Prepare a ligand file (also in PDB format) that contains the molecule you want to dock with the receptor.
 
-2. **Create a Multimol2 File**: 
-   - Prepare a multimol2 file that includes all the ligands you wish to screen. 
+2. **Create a Multimol2 File**:
+   - Prepare a multimol2 file that includes all the ligands you wish to screen.
    - Each ligand in the file must have:
      - **Partial Charges**: Ensure that the ligands have Gasteiger partial charges assigned.
      - **3D Coordinates**: The ligands should be represented in 3D space.
      - **Unique Names**: Each molecule must have a unique name to avoid conflicts during the screening process.
 
-3. **Execute the Command**: 
+3. **Execute the Command**:
    - Once your receptor and multimol2 file are ready, execute the following command in your terminal:
 
    ```bash

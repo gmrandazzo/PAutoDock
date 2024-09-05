@@ -13,9 +13,8 @@ Provides the basic operation for MOL2 files in parallel
 
 """
 
-import sys
-import shutil
 import os
+import shutil
 from pathlib import Path
 
 
@@ -36,13 +35,13 @@ def read_molname(filemol2: str):
 
 def get_mol2_name(filemol2: str):
     molname = read_molname("tmp_")
-    filename = molname+".mol2"
+    filename = molname + ".mol2"
     cc = 1
     while True:
         if os.path.isfile(filename) is False:
             break
         else:
-            filename = molname+"_"+str(cc)+".mol2"
+            filename = molname + "_" + str(cc) + ".mol2"
             cc = cc + 1
     return filename
 
@@ -57,7 +56,7 @@ def split_mol2(mmol2, path="./"):
             if ftmp.closed is False and firstmol is False:
                 ftmp.close()
                 filename = get_mol2_name("tmp_")
-                mpath = str(Path(path+"/"+filename).absolute())
+                mpath = str(Path(path + "/" + filename).absolute())
                 if Path(mpath).exists() is False:
                     shutil.move("tmp_", mpath)
                     mol2splitted.append(mpath)
@@ -72,11 +71,11 @@ def split_mol2(mmol2, path="./"):
     if ftmp.closed is False:
         ftmp.close()
         filename = get_mol2_name("tmp_")
-        mpath = str(Path(path+"/"+filename).absolute())
+        mpath = str(Path(path + "/" + filename).absolute())
         if Path(mpath).exists() is False:
             shutil.move("tmp_", mpath)
             mol2splitted.append(mpath)
         else:
-            os.remove ("tmp_")
+            os.remove("tmp_")
     fmol2.close()
     return mol2splitted

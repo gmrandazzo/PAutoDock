@@ -12,10 +12,11 @@ go to "http://www.gnu.org/licenses/gpl-3.0.en.html"
 Provides a commandline script to recover the output result of a virtualscreening.
 """
 
-import sys
-import os
-from pathlib import Path
 import argparse
+import os
+import sys
+from pathlib import Path
+
 from adparallel import ADParallel
 
 
@@ -24,9 +25,9 @@ def main():
     main.py
     """
     p = argparse.ArgumentParser()
-    p.add_argument('--wdir', default=None, type=str, help='work directory')
-    p.add_argument('--out', default=None, type=str, help='screening output')
-    p.add_argument('--ligand', default=None, type=str, help='ligand')
+    p.add_argument("--wdir", default=None, type=str, help="work directory")
+    p.add_argument("--out", default=None, type=str, help="screening output")
+    p.add_argument("--ligand", default=None, type=str, help="ligand")
     args = p.parse_args(sys.argv[1:])
 
     if args.wdir is None or args.out is None:
@@ -57,5 +58,5 @@ def main():
         return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

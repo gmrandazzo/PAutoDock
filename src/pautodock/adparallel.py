@@ -16,48 +16,49 @@ Provides the basic code to run autodock in parallel on a machine.
 
 import logging
 import math
+import multiprocessing
+import os
+import platform
+import shutil
+import tempfile
+from pathlib import Path
+
 import molop
 import multimol2op
-import os
-import tempfile
-import shutil
-from pathlib import Path
-import platform
-import multiprocessing
+
 from .mgltoolsinstall import install_mgltools
+
 
 def get_vina_path():
     """
     Get the path to the vina executable based on the operating system.
     """
-    paths = {
-        "Linux": "/usr/bin/",
-        "Darwin": "/opt/homebrew/bin/"
-    }
+    paths = {"Linux": "/usr/bin/", "Darwin": "/opt/homebrew/bin/"}
     system = platform.system()
     vina_path = paths.get(system)
 
-    if vina_path and Path(f'{vina_path}/vina').exists():
+    if vina_path and Path(f"{vina_path}/vina").exists():
         return vina_path
     elif system not in paths:
-        raise ValueError('Platform not supported')
+        raise ValueError("Platform not supported")
     else:
-        raise ValueError('Unable to find open-babel installed')
+        raise ValueError("Unable to find open-babel installed")
+
 
 class ADParallel(object):
     def __init__(self, receptor, ligand, db, wpath):
         self.atdpath = get_vina_path()
-        self.mglpath = Path(f'{Path.home()}/.pautodock/MGLTools')
-        if self.mglpath.exists() == False:
+        self.mglpath = Path(f"{Path.home()}/.pautodock/MGLTools")
+        if not self.mglpath.exists():
             install_mgltools()
         self.receptor = receptor
         self.ligand = ligand
         self.db = db
         self.wpath = wpath
         self.results = []
-        self.cx = 0.
-        self.cy = 0.
-        self.cz = 0.
+        self.cx = 0.0
+        self.cy = 0.0
+        self.cz = 0.0
         self.gsize_x = 30
         self.gsize_y = 30
         self.gsize_z = 30
@@ -92,26 +93,26 @@ class ADParallel(object):
         lat_str, lat_lst = self.readAtomTypes(path + "/" + mol_pdbqt)
         # write the GPF
         f = open(path + "/grid.gpf", "w")
-        f.write("npts %d %d %d # num.grid points in xyz\n" %
-                (self.gsize_x, self.gsize_y, self.gsize_z))
-        f.write("gridfld %s/receptor_model.maps.fld     # grid_data_file\n" %
-                (path_))
+        f.write(
+            "npts %d %d %d # num.grid points in xyz\n"
+            % (self.gsize_x, self.gsize_y, self.gsize_z)
+        )
+        f.write("gridfld %s/receptor_model.maps.fld     # grid_data_file\n" % (path_))
         f.write("spacing 0.33 # spacing(A)\n")
-        f.write("receptor_types %s # receptor atom types\n" %
-                (rat_str))
-        f.write("ligand_types %s # ligand atom types\n" %
-                (lat_str))
+        f.write("receptor_types %s # receptor atom types\n" % (rat_str))
+        f.write("ligand_types %s # ligand atom types\n" % (lat_str))
         f.write("receptor %s    # macromolecule\n" % (rec_pdbqt))
-        f.write("gridcenter %.3f %.3f %.3f       # xyz-coordinates or auto\n" %
-                (cc[0], cc[1], cc[2]))
+        f.write(
+            "gridcenter %.3f %.3f %.3f       # xyz-coordinates or auto\n"
+            % (cc[0], cc[1], cc[2])
+        )
         f.write("smooth 0.5  # store minimum energy w/in rad(A)\n")
         for at in lat_lst:
-            f.write("map %s/receptor_model.%s.map # atom-specific aff. map\n" %
-                    (path_, at))
-        f.write("elecmap %s/receptor_model.e.map # El. Pot potential map\n" %
-                (path_))
-        f.write("dsolvmap %s/receptor_model.d.map # desolv. potential map\n" %
-                (path_))
+            f.write(
+                "map %s/receptor_model.%s.map # atom-specific aff. map\n" % (path_, at)
+            )
+        f.write("elecmap %s/receptor_model.e.map # El. Pot potential map\n" % (path_))
+        f.write("dsolvmap %s/receptor_model.d.map # desolv. potential map\n" % (path_))
         f.write("dielectric -0.1465 # <0, AD4 dist-dep.diel;>0, constant\n")
         f.close()
 
@@ -123,19 +124,18 @@ class ADParallel(object):
         f.write("intelec # calculate internal electrostatics\n")
         f.write("seed time pid # seeds for random generator\n")
         f.write("ligand_types %s # atoms types in ligand\n" % (lat_str))
-        f.write("fld %s/receptor_model.maps.fld      # grid_data_file\n" %
-                (path_))
+        f.write("fld %s/receptor_model.maps.fld      # grid_data_file\n" % (path_))
         for at in lat_lst:
-            f.write("map %s/receptor_model.%s.map # atom-specific aff. map\n" %
-                    (path_, at))
-        f.write("elecmap %s/receptor_model.e.map    # electrostatics map\n" %
-                (path_))
-        f.write("desolvmap %s/receptor_model.d.map   # desolvation map\n" %
-                (path_))
-        f.write("move %s/%s                    # small molecule\n" %
-                (path_, mol_pdbqt))
-        f.write("about %.4f %.4f %.4f       # small molecule center\n" %
-                (cc[0], cc[1], cc[2]))
+            f.write(
+                "map %s/receptor_model.%s.map # atom-specific aff. map\n" % (path_, at)
+            )
+        f.write("elecmap %s/receptor_model.e.map    # electrostatics map\n" % (path_))
+        f.write("desolvmap %s/receptor_model.d.map   # desolvation map\n" % (path_))
+        f.write("move %s/%s                    # small molecule\n" % (path_, mol_pdbqt))
+        f.write(
+            "about %.4f %.4f %.4f       # small molecule center\n"
+            % (cc[0], cc[1], cc[2])
+        )
         f.write("tran0 %.4f %.4f %.4f " % (cc[0], cc[1], cc[2]))
         f.write("# initial coordinates/A or random\n")
         f.write("quaternion0 random ")
@@ -245,13 +245,13 @@ class ADParallel(object):
                 r_rmsd.append(float(v[5]))
         f.close()
         header.append("Binding Energy Average")
-        r.append(round(sum(benergy) / float(len(benergy)),3))
+        r.append(round(sum(benergy) / float(len(benergy)), 3))
         header.append("Cluster RMSD Average")
-        r.append(round(sum(c_rmsd) / float(len(c_rmsd)),3))
+        r.append(round(sum(c_rmsd) / float(len(c_rmsd)), 3))
         header.append("Ref. RMSD Average")
-        r.append(round(sum(r_rmsd) / float(len(r_rmsd)),3))
+        r.append(round(sum(r_rmsd) / float(len(r_rmsd)), 3))
         return header, r
-    
+
     def LigandPosesBaricentreDistance(self, dock_pdbqt: str) -> float:
         """
         Calculate the distance between the ligand and docking pose baricentres.
@@ -259,23 +259,27 @@ class ADParallel(object):
         poses_cc = molop.get_mol_baricentre(dock_pdbqt)
         if int(self.cx) == 0:
             self.cx, self.cy, self.cz = molop.get_mol_baricentre(self.ligand)
-        return math.sqrt((self.cx-poses_cc[0])**2+(self.cy-poses_cc[1])**2+(self.cz-poses_cc[2])**2)
+        return math.sqrt(
+            (self.cx - poses_cc[0]) ** 2
+            + (self.cy - poses_cc[1]) ** 2
+            + (self.cz - poses_cc[2]) ** 2
+        )
 
     def ReadVinaOutput(self, ofile):
         benergy = []
         f = open(str(Path(ofile).absolute()), "r")
         getres = False
         for line in f:
-            if getres == True:
+            if getres:
                 # Filter double outputs
-                if "Writing output ... done." in line or 'AutoDock Vina' in line:
+                if "Writing output ... done." in line or "AutoDock Vina" in line:
                     getres = False
                 else:
                     try:
                         v = molop.nsplit(line.strip(), " ")
                         benergy.append(float(v[1]))
                     except ValueError as err:
-                        logging.error('Error with file %s', ofile)
+                        logging.error("Error with file %s - %s" % (ofile, err))
             else:
                 if "-----+------------+----------+----------" in line:
                     getres = True
@@ -284,9 +288,13 @@ class ADParallel(object):
 
         f.close()
         if len(benergy) > 0:
-            return round(sum(benergy) / float(len(benergy)), 3), min(benergy), max(benergy)
+            return (
+                round(sum(benergy) / float(len(benergy)), 3),
+                min(benergy),
+                max(benergy),
+            )
         else:
-            return 9999., 9999., 9999.
+            return 9999.0, 9999.0, 9999.0
 
     def GenVSOutput(self, vinalogout, dpfout, mnames, otab):
         """
@@ -297,7 +305,9 @@ class ADParallel(object):
         for i, vout in enumerate(vinalogout):
             avg_b, min_b, max_b = self.ReadVinaOutput(vout)
             try:
-                dock_poses = f'{Path(vout).parent.absolute()}/dock_confs_{mnames[i]}.pdbqt'
+                dock_poses = (
+                    f"{Path(vout).parent.absolute()}/dock_confs_{mnames[i]}.pdbqt"
+                )
                 lp_dst = self.LigandPosesBaricentreDistance(dock_poses)
             except FileNotFoundError as err:
                 logging.error("%s not found", err)
@@ -312,7 +322,7 @@ class ADParallel(object):
             if len(dpfout) > 0:
                 if Path(dpfout[i]).is_file():
                     h, r = self.ReadOutput(dpfout[i])
-            if firstline == True:
+            if firstline:
                 firstline = False
                 fo.write("Molname;")
                 for j in range(len(h)):
@@ -323,8 +333,19 @@ class ADParallel(object):
             fo.write("%s;" % (mnames[i]))
             for j in range(len(r)):
                 fo.write("%s;" % (r[j]))
-            fo.write("%f;%f;%f;%f\n" % (vbind[i][0], vbind[i][1], vbind[i][2], vbind[i][3]))
+            fo.write(
+                "%f;%f;%f;%f\n" % (vbind[i][0], vbind[i][1], vbind[i][2], vbind[i][3])
+            )
         fo.close()
+
+    def make_vina_cmd(
+        self, vconf_path, rec_pdbqt, mol_pdbqt, mpath, molname, vinalogout
+    ) -> str:
+        vc = f'--config "{vconf_path}"'
+        vc += f' --receptor "{rec_pdbqt}"'
+        vc += f' --ligand "{mol_pdbqt}"'
+        vc += f' --out "{mpath}/dock_confs_{molname}.pdbqt" >> {vinalogout}'
+        return vc
 
     def VS(self, otab):
         # Prepare the receptor
@@ -348,21 +369,20 @@ class ADParallel(object):
             molname = molname_ext.replace(".mol2", "")
             mnames.append(molname)
             mpath = str(Path(self.wpath + "/" + molname).absolute())
-            if Path(f'{mpath}/dock_confs_{molname}.pdbqt').exists() == False:
-                if Path(mpath).exists() == False:
+            if not Path(f"{mpath}/dock_confs_{molname}.pdbqt").exists():
+                if not Path(mpath).exists():
                     os.makedirs(mpath)
-                if Path(mpath + "/" + molname_ext).exists() == False:
+                if not Path(mpath + "/" + molname_ext).exists():
                     shutil.move(str(Path(mol2).resolve()), mpath)
 
-                mol = molop.Molecule(str(Path(mpath + "/" + molname_ext).absolute()), self.mglpath)
+                mol = molop.Molecule(
+                    str(Path(mpath + "/" + molname_ext).absolute()), self.mglpath
+                )
                 mol_pdbqt = mol.topdbqt([self.cx, self.cy, self.cz])
                 mol_pdbqt_name = str(Path(mol_pdbqt).resolve().name)
-                if self.atd == True:
+                if not self.atd:
                     gpf_path, dpf_path = self.WriteParamFiles(
-                        mpath,
-                        rec_pdbqt,
-                        mol_pdbqt_name,
-                        [self.cx, self.cy, self.cz]
+                        mpath, rec_pdbqt, mol_pdbqt_name, [self.cx, self.cy, self.cz]
                     )
                     first_arg = str(gpf_path)
                     second_arg = str(gpf_path).replace(".gpf", "")
@@ -372,20 +392,27 @@ class ADParallel(object):
                     ad = f'-p "{str(dpf_path)}" -l "{dpfout[-1]}"'
                     adcmdlst.append(ad)
 
-                if self.vina == True:
-                    vinalogout.append(f'{mpath}/vina_log.txt')
+                if not self.vina:
+                    vinalogout.append(f"{mpath}/vina_log.txt")
                     # If the log and the docking pose extists then
                     # there is no need to run the calculation
                     vconf_path = self.WriteVinaParams(
                         mpath,
                         [self.cx, self.cy, self.cz],
-                        [self.gsize_x, self.gsize_y, self.gsize_z]
+                        [self.gsize_x, self.gsize_y, self.gsize_z],
                     )
-                    vc = f'--config "{vconf_path}" --receptor "{rec_pdbqt}" --ligand "{mol_pdbqt}" '
-                    vc += f'--out "{mpath}/dock_confs_{molname}.pdbqt" >> {vinalogout[-1]}'
-                    vinacmdlst.append(vc)
+                    vinacmdlst.append(
+                        self.make_vina_cmd(
+                            vconf_path,
+                            rec_pdbqt,
+                            mol_pdbqt,
+                            mpath,
+                            molname,
+                            vinalogout[-1],
+                        )
+                    )
             else:
-                vinalogout.append(f'{mpath}/vina_log.txt')
+                vinalogout.append(f"{mpath}/vina_log.txt")
         shutil.rmtree(tmppath)
         # Run AutoGrid
         ncpu = multiprocessing.cpu_count()

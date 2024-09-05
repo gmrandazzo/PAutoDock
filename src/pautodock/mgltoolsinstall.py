@@ -13,32 +13,30 @@ Provides the basic operation for molecular files.
 
 """
 
+import logging
 import platform
 import subprocess
 from pathlib import Path
-import logging
 
-from .fileutils import (
-    download_file,
-    extract_tar_gz
-)
+from .fileutils import download_file, extract_tar_gz
+
 
 def install_mgltools():
     """
     Install MGLTools from the official website.
     """
-    hidden_dir = Path.home() / '.pautodock'
+    hidden_dir = Path.home() / ".pautodock"
     hidden_dir.mkdir(exist_ok=True)
-    destination = hidden_dir / 'mgltools_1.5.7.tar.gz'
+    destination = hidden_dir / "mgltools_1.5.7.tar.gz"
     dir_name = None
 
     system = platform.system()
     if system == "Linux":
-        url = 'https://ccsb.scripps.edu/download/532/'
-        dir_name = 'mgltools_x86_64Linux2_1.5.7'
+        url = "https://ccsb.scripps.edu/download/532/"
+        dir_name = "mgltools_x86_64Linux2_1.5.7"
     elif system == "Darwin":
-        url = 'https://ccsb.scripps.edu/download/529/'
-        dir_name = 'mgltools_1.5.7_MacOS-X'
+        url = "https://ccsb.scripps.edu/download/529/"
+        dir_name = "mgltools_1.5.7_MacOS-X"
     else:
         logging.error("Unsupported platform")
         return False
@@ -48,9 +46,9 @@ def install_mgltools():
             return False
 
     if extract_tar_gz(destination, hidden_dir):
-        install_dir = hidden_dir / 'MGLTools'
-        install_script = hidden_dir / dir_name / 'install.sh'
-        cmd_args = ['sh', str(install_script), '-d', str(install_dir)]
+        install_dir = hidden_dir / "MGLTools"
+        install_script = hidden_dir / dir_name / "install.sh"
+        cmd_args = ["sh", str(install_script), "-d", str(install_dir)]
 
         try:
             subprocess.check_output(
@@ -58,7 +56,7 @@ def install_mgltools():
                 cwd=hidden_dir / dir_name,
                 shell=False,
                 text=True,
-                stderr=subprocess.DEVNULL
+                stderr=subprocess.DEVNULL,
             )
             logging.info("MGLTools installed successfully.")
             return True
