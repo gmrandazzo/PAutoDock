@@ -1,0 +1,35 @@
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.isort]
+profile = "black"
+
+[tool.poetry]
+name = "pautodock"
+version = "1.0.0"
+description = "A simple tool to parallelize AutoDock JOBs"
+authors = ["Giuseppe Marco Randazzo <gmrandazzo@gmail.com>"]
+readme = "README.md"
+license = "lglpv3"
+repository = "https://github.com/gmrandazzo/PAutoDock"
+packages = [{include = "pautodock", from = "src"}]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: lglpv3",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Topic :: Scientific/Engineering :: Bioinformatics",
+]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+bleak = "^0.19.5"
+
+[tool.poetry.scripts]
+pautodock = "pautodock.__main__:main"
+pautodock-recover-output = "pautodock.__recover_output__:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
