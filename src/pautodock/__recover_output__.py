@@ -17,7 +17,7 @@ import os
 import sys
 from pathlib import Path
 
-from adparallel import ADParallel
+from pautodock.adparallel import ADParallel
 
 
 def main():

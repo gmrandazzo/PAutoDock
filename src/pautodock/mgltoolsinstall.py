@@ -18,7 +18,7 @@ import platform
 import subprocess
 from pathlib import Path
 
-from .fileutils import download_file, extract_tar_gz
+from pautodock.fileutils import download_file, extract_tar_gz
 
 
 def install_mgltools():

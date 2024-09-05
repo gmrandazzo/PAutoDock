@@ -17,7 +17,7 @@ in parallel.
 import argparse
 import sys
 
-from .adparallel import ADParallel
+from pautodock.adparallel import ADParallel
 
 
 def main():

@@ -23,10 +23,8 @@ import shutil
 import tempfile
 from pathlib import Path
 
-import molop
-import multimol2op
-
-from .mgltoolsinstall import install_mgltools
+from pautodock import molop, multimol2op
+from pautodock.mgltoolsinstall import install_mgltools
 
 
 def get_vina_path():
