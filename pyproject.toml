@@ -23,8 +23,7 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.6"
-bleak = "^0.19.5"
+python = "^3.8"
 
 [tool.poetry.scripts]
 pautodock = "pautodock.__main__:main"
