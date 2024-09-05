@@ -1,7 +1,0 @@
-center_x = -9.0636
-center_y = -7.1446
-center_z = 55.8626
-size_x = 30
-size_y = 30
-size_z = 30
-num_modes = 9
