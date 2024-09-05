@@ -24,6 +24,7 @@ To run PAutodock, you will need the following software installed:
 - [AutoDock](http://autodock.scripps.edu/)
 - [AutoGrid](http://autodock.scripps.edu/resources/autogrid)
 - [AutoDock Vina](http://vina.scripps.edu/)
+- [OpenBabel](http://openbabel.org/index.html)
 
 Ensure that these dependencies are properly installed and accessible from your command line.
 
@@ -52,4 +53,5 @@ To use PAutodock for parallelizing AutoDock jobs, follow these steps:
    - Once your receptor and multimol2 file are ready, execute the following command in your terminal:
 
    ```bash
-   python3 main.py --receptor receptor.pdb --ligand ligand.pdb --db multimol2_mol_to_screen.mol2 --wdir="./" --smode=medium --out screening_results.csv
+   cd data/3EML
+   pautodock --receptor rec.pdb --cx -9.06364 --cy -7.1446 --cz 55.8626 --db dataset.mol2 --wdir example_calculation --out screening_results.csv --vina ON --atd OFF

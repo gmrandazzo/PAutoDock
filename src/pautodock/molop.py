@@ -14,8 +14,25 @@ Provides the basic operation for molecular files.
 """
 
 import logging
+import platform
 import subprocess
 from pathlib import Path
+
+
+def get_obabel_path():
+    """
+    Get the path to the openbabel executable based on the operating system.
+    """
+    paths = {"Linux": "/usr/bin/", "Darwin": "/opt/homebrew/bin/"}
+    system = platform.system()
+    obabel_path = paths.get(system)
+
+    if obabel_path and Path(f"{obabel_path}/obabel").exists():
+        return obabel_path
+    elif system not in paths:
+        raise ValueError("Platform not supported")
+    else:
+        raise ValueError("Unable to find open-babel installed")
 
 
 def nsplit(s, delim=None):
@@ -71,12 +88,13 @@ class Molecule(object):
     def __init__(self, molecule, mglpath):
         self.molecule = molecule
         self.mglpath = str(Path(mglpath).resolve())
+        self.obabel_path = get_obabel_path()
 
     def topdbqt(self, tran0=[]):
         """
         tran0 is the vector of centre x,y,z where to translate the molecule
         """
-        obabel = "/usr/bin/obabel"
+        obabel = f"{self.obabel_path}/obabel"
         molname = self.molecule
         if ".mol2" in molname.lower():
             molname = molname.replace(".mol2", ".pdbqt")

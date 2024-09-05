@@ -40,7 +40,7 @@ def get_vina_path():
     elif system not in paths:
         raise ValueError("Platform not supported")
     else:
-        raise ValueError("Unable to find open-babel installed")
+        raise ValueError("Unable to find vina installed")
 
 
 class ADParallel(object):
@@ -350,7 +350,7 @@ class ADParallel(object):
         rec = molop.Receptor(self.receptor, self.mglpath)
         rec_pdbqt = rec.topdbqt()
         if self.ligand is not None:
-            self.cx, self.cy, self.cz = molop.getMolBaricentre(self.ligand)
+            self.cx, self.cy, self.cz = molop.get_mol_baricentre(self.ligand)
         # Prepare the database split multi mol2
         tmppath = tempfile.mkdtemp()
         mol2lst = multimol2op.split_mol2(self.db, tmppath)
@@ -378,7 +378,7 @@ class ADParallel(object):
                 )
                 mol_pdbqt = mol.topdbqt([self.cx, self.cy, self.cz])
                 mol_pdbqt_name = str(Path(mol_pdbqt).resolve().name)
-                if not self.atd:
+                if self.atd:
                     gpf_path, dpf_path = self.WriteParamFiles(
                         mpath, rec_pdbqt, mol_pdbqt_name, [self.cx, self.cy, self.cz]
                     )
@@ -390,7 +390,7 @@ class ADParallel(object):
                     ad = f'-p "{str(dpf_path)}" -l "{dpfout[-1]}"'
                     adcmdlst.append(ad)
 
-                if not self.vina:
+                if self.vina:
                     vinalogout.append(f"{mpath}/vina_log.txt")
                     # If the log and the docking pose extists then
                     # there is no need to run the calculation
@@ -412,18 +412,19 @@ class ADParallel(object):
             else:
                 vinalogout.append(f"{mpath}/vina_log.txt")
         shutil.rmtree(tmppath)
-        # Run AutoGrid
         ncpu = multiprocessing.cpu_count()
-        pool = multiprocessing.Pool(ncpu)
-        pool.map(self.RunAutoGrid, agcmdlst)
+        if self.atd:
+            # Run AutoGrid
+            pool = multiprocessing.Pool(ncpu)
+            pool.map(self.RunAutoGrid, agcmdlst)
+            # RunAutodock
+            pool = multiprocessing.Pool(ncpu)
+            pool.map(self.RunAutoDock, adcmdlst)
 
-        # RunAutodock
-        pool = multiprocessing.Pool(ncpu)
-        pool.map(self.RunAutoDock, adcmdlst)
-
-        # RunVina
-        pool = multiprocessing.Pool(ncpu)
-        pool.map(self.RunVina, vinacmdlst)
+        if self.vina:
+            # RunVina
+            pool = multiprocessing.Pool(ncpu)
+            pool.map(self.RunVina, vinacmdlst)
 
         # Write the output table
         self.GenVSOutput(vinalogout, dpfout, mnames, otab)
