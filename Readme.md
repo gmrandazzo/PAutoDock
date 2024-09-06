@@ -34,6 +34,22 @@ Ensure that these dependencies are properly installed and accessible from your c
 - **2022**: First time online
 - **2017**: Initial release
 
+## Installation
+
+Install from pip
+
+```
+pip install pautodock
+```
+
+or clone and install from source
+
+```
+git clone https://github.com/gmrandazzo/PAutoDock.git
+cd PAutoDock
+poetry install
+```
+
 ## Usage
 
 To use PAutodock for parallelizing AutoDock jobs, follow these steps:
