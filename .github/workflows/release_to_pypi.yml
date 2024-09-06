@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9, 3.10, 3.11, 3.12]
+        python-version: [3.11]
 
     steps:
       - name: Checkout code
@@ -20,17 +20,30 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-virtualenv
+
+
+      - name: Create and activate virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+
       - name: Install Poetry
         run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          python -m pip install --upgrade pip
+          pip install poetry
 
       - name: Install dependencies
         run: |
+          source venv/bin/activate
           poetry install --no-dev
 
       - name: Build package
         run: |
+          source venv/bin/activate
           poetry build
 
       - name: Upload to PyPI
