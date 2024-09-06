@@ -10,7 +10,7 @@ name = "pautodock"
 version = "1.0.0"
 description = "A simple tool to parallelize AutoDock JOBs"
 authors = ["Giuseppe Marco Randazzo <gmrandazzo@gmail.com>"]
-readme = "README.md"
+readme = "Readme.md"
 license = "lglpv3"
 repository = "https://github.com/gmrandazzo/PAutoDock"
 packages = [{include = "pautodock", from = "src"}]
