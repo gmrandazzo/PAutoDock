@@ -33,7 +33,7 @@ jobs:
       - name: Install Python dependencies and tox
         run: |
           python -m pip install --upgrade pip
-          pip install tox  # Install tox
+          pip install tox poetry
 
       - name: Run tests with tox
         run: |
