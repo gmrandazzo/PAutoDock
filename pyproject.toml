@@ -16,10 +16,10 @@ repository = "https://github.com/gmrandazzo/PAutoDock"
 packages = [{include = "pautodock", from = "src"}]
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",    
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS :: MacOS X",
-    "Topic :: Scientific/Engineering :: Bioinformatics",
+    "Topic :: Scientific/Engineering :: Bio-Informatics"
 ]
 
 [tool.poetry.dependencies]
