@@ -18,37 +18,34 @@ import logging
 import math
 import multiprocessing
 import os
-import platform
 import shutil
 import tempfile
 from pathlib import Path
 
 from pautodock import molop, multimol2op
+from pautodock.fileutils import get_bin_path
 from pautodock.mgltoolsinstall import install_mgltools
-
-
-def get_vina_path():
-    """
-    Get the path to the vina executable based on the operating system.
-    """
-    paths = {"Linux": "/usr/bin/", "Darwin": "/opt/homebrew/bin/"}
-    system = platform.system()
-    vina_path = paths.get(system)
-
-    if vina_path and Path(f"{vina_path}/vina").exists():
-        return vina_path
-    elif system not in paths:
-        raise ValueError("Platform not supported")
-    else:
-        raise ValueError("Unable to find vina installed")
 
 
 class ADParallel(object):
     def __init__(self, receptor, ligand, db, wpath):
-        self.atdpath = get_vina_path()
+        try:
+            self.atdpath = get_bin_path("autodock")
+        except ValueError:
+            self.atdpath = None
+        try:
+            self.vinapath = get_bin_path("vina")
+        except ValueError:
+            self.vinapath = None
+
+        if not self.atdpath and not self.vinapath:
+            msg = "Error!! autodock and vina are not installed!\n"
+            msg += "Unable to run any calculation."
+            raise ValueError(msg)
+
         self.mglpath = Path(f"{Path.home()}/.pautodock/MGLTools")
         if not self.mglpath.exists():
-            install_mgltools()
+            install_mgltools(f"{Path.home()}/.pautodock")
         self.receptor = receptor
         self.ligand = ligand
         self.db = db
@@ -64,8 +61,10 @@ class ADParallel(object):
         self.atd = True
         self.vina = True
 
-    def readAtomTypes(self, rec_mol):
-        # Read the atom types
+    def read_atom_types(self, rec_mol):
+        """
+        Read atom types in pdb and return in a list
+        """
         atlst = []
         f = open(rec_mol, "r")
         for line in f:
@@ -85,10 +84,10 @@ class ADParallel(object):
             atypes_str += " %s" % atlst[i]
         return atypes_str, atlst
 
-    def WriteParamFiles(self, path, rec_pdbqt, mol_pdbqt, cc):
+    def write_autodock_param_files(self, path, rec_pdbqt, mol_pdbqt, cc):
         path_ = Path(path).absolute()
-        rat_str, rat_lst = self.readAtomTypes(rec_pdbqt)
-        lat_str, lat_lst = self.readAtomTypes(path + "/" + mol_pdbqt)
+        rat_str, _ = self.read_atom_types(rec_pdbqt)
+        lat_str, lat_lst = self.read_atom_types(path + "/" + mol_pdbqt)
         # write the GPF
         f = open(path + "/grid.gpf", "w")
         f.write(
@@ -192,7 +191,7 @@ class ADParallel(object):
         ind_path = Path(path + "/ind.dpf").absolute()
         return grid_path, ind_path
 
-    def WriteVinaParams(self, path, cc, ss):
+    def write_vina_param_files(self, path, cc, ss):
         f = open(path + "/vina_conf.txt", "w")
         f.write("center_x = %.4f\n" % (cc[0]))
         f.write("center_y = %.4f\n" % (cc[1]))
@@ -213,7 +212,7 @@ class ADParallel(object):
         return os.system("%s %s" % (atd_path, cmd))
 
     def RunVina(self, cmd):
-        vina_path = str(Path("%s/vina" % (self.atdpath)).absolute())
+        vina_path = str(Path("%s/vina" % (self.vinapath)).absolute())
         return os.system("%s %s" % (vina_path, cmd))
 
     def ReadOutput(self, ofile):
@@ -263,7 +262,7 @@ class ADParallel(object):
             + (self.cz - poses_cc[2]) ** 2
         )
 
-    def ReadVinaOutput(self, ofile):
+    def read_vina_output(self, ofile):
         benergy = []
         f = open(str(Path(ofile).absolute()), "r")
         getres = False
@@ -294,14 +293,14 @@ class ADParallel(object):
         else:
             return 9999.0, 9999.0, 9999.0
 
-    def GenVSOutput(self, vinalogout, dpfout, mnames, otab):
+    def gen_vs_output(self, vinalogout, dpfout, mnames, otab):
         """
         Collect vina results
         """
         # Collect the vina results
         vbind = []
         for i, vout in enumerate(vinalogout):
-            avg_b, min_b, max_b = self.ReadVinaOutput(vout)
+            avg_b, min_b, max_b = self.read_vina_output(vout)
             try:
                 dock_poses = (
                     f"{Path(vout).parent.absolute()}/dock_confs_{mnames[i]}.pdbqt"
@@ -345,7 +344,7 @@ class ADParallel(object):
         vc += f' --out "{mpath}/dock_confs_{molname}.pdbqt" >> {vinalogout}'
         return vc
 
-    def VS(self, otab):
+    def virtual_screening(self, otab):
         # Prepare the receptor
         rec = molop.Receptor(self.receptor, self.mglpath)
         rec_pdbqt = rec.topdbqt()
@@ -379,7 +378,7 @@ class ADParallel(object):
                 mol_pdbqt = mol.topdbqt([self.cx, self.cy, self.cz])
                 mol_pdbqt_name = str(Path(mol_pdbqt).resolve().name)
                 if self.atd:
-                    gpf_path, dpf_path = self.WriteParamFiles(
+                    gpf_path, dpf_path = self.write_autodock_param_files(
                         mpath, rec_pdbqt, mol_pdbqt_name, [self.cx, self.cy, self.cz]
                     )
                     first_arg = str(gpf_path)
@@ -394,7 +393,7 @@ class ADParallel(object):
                     vinalogout.append(f"{mpath}/vina_log.txt")
                     # If the log and the docking pose extists then
                     # there is no need to run the calculation
-                    vconf_path = self.WriteVinaParams(
+                    vconf_path = self.write_vina_param_files(
                         mpath,
                         [self.cx, self.cy, self.cz],
                         [self.gsize_x, self.gsize_y, self.gsize_z],
@@ -427,5 +426,4 @@ class ADParallel(object):
             pool.map(self.RunVina, vinacmdlst)
 
         # Write the output table
-        self.GenVSOutput(vinalogout, dpfout, mnames, otab)
-        return 1
+        self.gen_vs_output(vinalogout, dpfout, mnames, otab)

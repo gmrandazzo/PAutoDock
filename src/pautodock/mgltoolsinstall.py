@@ -21,13 +21,13 @@ from pathlib import Path
 from pautodock.fileutils import download_file, extract_tar_gz
 
 
-def install_mgltools():
+def install_mgltools(dir: str):
     """
     Install MGLTools from the official website.
     """
-    hidden_dir = Path.home() / ".pautodock"
-    hidden_dir.mkdir(exist_ok=True)
-    destination = hidden_dir / "mgltools_1.5.7.tar.gz"
+    directory = Path(dir)
+    directory.mkdir(exist_ok=True)
+    destination = directory / "mgltools_1.5.7.tar.gz"
     dir_name = None
 
     system = platform.system()
@@ -45,15 +45,15 @@ def install_mgltools():
         if not download_file(url, destination):
             return False
 
-    if extract_tar_gz(destination, hidden_dir):
-        install_dir = hidden_dir / "MGLTools"
-        install_script = hidden_dir / dir_name / "install.sh"
+    if extract_tar_gz(destination, directory):
+        install_dir = directory / "MGLTools"
+        install_script = directory / dir_name / "install.sh"
         cmd_args = ["sh", str(install_script), "-d", str(install_dir)]
 
         try:
             subprocess.check_output(
                 cmd_args,
-                cwd=hidden_dir / dir_name,
+                cwd=directory / dir_name,
                 shell=False,
                 text=True,
                 stderr=subprocess.DEVNULL,

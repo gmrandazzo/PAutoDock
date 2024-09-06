@@ -74,7 +74,7 @@ def main():
         dock.gsize_x = args.gx
         dock.gsize_y = args.gy
         dock.gsize_z = args.gz
-        dock.VS(args.out)
+        dock.virtual_screening(args.out)
     return 0
 
 

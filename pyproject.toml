@@ -26,6 +26,12 @@ classifiers = [
 python = "^3.8"
 requests = "^2.32.3"
 
+[tool.poetry.dev-dependencies]
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+pre-commit = "^3.3.3"
+tox = "^4.2.3"
+
 [tool.poetry.scripts]
 pautodock = "pautodock.__main__:main"
 pautodock-recover-output = "pautodock.__recover_output__:main"

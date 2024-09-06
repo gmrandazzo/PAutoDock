@@ -39,5 +39,8 @@ build/*
 # Debug files
 *.dSYM/
 
+.coverage
+coverage.xml
+
 *.kdev4
 __pycache__/

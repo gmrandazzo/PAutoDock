@@ -13,9 +13,26 @@ Provides the basic operation for molecular files.
 
 """
 import logging
+import platform
 import tarfile
+from pathlib import Path
 
 import requests
+
+
+def get_bin_path(bin_name: str):
+    """
+    Get the path to the bin_name executable based on the operating system.
+    """
+    paths = {"Linux": ["/usr/bin/", "/usr/local/bin"], "Darwin": ["/opt/homebrew/bin/"]}
+    system = platform.system()
+    if system not in paths:
+        raise ValueError("Platform not supported")
+
+    for bin_path in paths.get(system):
+        if bin_path and Path(f"{bin_path}/{bin_name}").exists():
+            return bin_path
+    raise ValueError(f"Unable to find {bin_name} installed.")
 
 
 def download_file(url, destination):

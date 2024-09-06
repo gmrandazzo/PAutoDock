@@ -14,29 +14,31 @@ Provides the basic operation for molecular files.
 """
 
 import logging
-import platform
 import subprocess
 from pathlib import Path
 
-
-def get_obabel_path():
-    """
-    Get the path to the openbabel executable based on the operating system.
-    """
-    paths = {"Linux": "/usr/bin/", "Darwin": "/opt/homebrew/bin/"}
-    system = platform.system()
-    obabel_path = paths.get(system)
-
-    if obabel_path and Path(f"{obabel_path}/obabel").exists():
-        return obabel_path
-    elif system not in paths:
-        raise ValueError("Platform not supported")
-    else:
-        raise ValueError("Unable to find open-babel installed")
+from pautodock.fileutils import get_bin_path
 
 
 def nsplit(s, delim=None):
     return [x for x in s.split(delim) if x]
+
+
+def extract_coordinates(line, ftype):
+    if ftype == "pdb":
+        if "HETATM" in line:
+            x = float(line[29:39].strip())
+            y = float(line[39:47].strip())
+            z = float(line[47:55].strip())
+            return [float(x), float(y), float(z)]
+    elif ftype == "pdbqt":
+        if "ATOM" in line:
+            x = float(line[31:39].strip())
+            y = float(line[38:46].strip())
+            z = float(line[46:54].strip())
+            return [float(x), float(y), float(z)]
+    else:
+        return None
 
 
 def get_mol_baricentre(mol: str) -> tuple:
@@ -45,19 +47,23 @@ def get_mol_baricentre(mol: str) -> tuple:
     """
     cc = [0.0, 0.0, 0.0]
     n = 0
-    if ".pdbqt" in mol:
-        j = -5
+    if mol.endswith(".pdbqt"):
+        ftype = "pdbqt"
+    elif mol.endswith(".pdb"):
+        ftype = "pdb"
     else:
-        j = -4
+        raise ValueError(
+            "Molecual format not supported {mol}. Supported formats: pdb or pdbqt"
+        )
+
     with open(mol, "r", encoding="utf-8") as f:
         for line in f:
             if ("ATOM" in line or "HETATM" in line) and "REMARK" not in line:
                 try:
-                    # Get the results from back
-                    items = list(filter(None, str.split(line.strip(), " ")))
-                    cc[0] += float(items[j - 2])
-                    cc[1] += float(items[j - 1])
-                    cc[2] += float(items[j])
+                    ex_cc = extract_coordinates(line.strip(), ftype)
+                    if ex_cc:
+                        for i, val in enumerate(ex_cc):
+                            cc[i] += val
                     n += 1
                 except IndexError as err:
                     logging.error("%s get_mol_baricentre problem with %s", err, line)
@@ -88,7 +94,7 @@ class Molecule(object):
     def __init__(self, molecule, mglpath):
         self.molecule = molecule
         self.mglpath = str(Path(mglpath).resolve())
-        self.obabel_path = get_obabel_path()
+        self.obabel_path = get_bin_path("obabel")
 
     def topdbqt(self, tran0=[]):
         """
@@ -109,28 +115,26 @@ class Molecule(object):
         # Translate to the new center
         fpdbqt = str(Path(molname).resolve())
         if len(tran0) > 0:
+            # pattern = r"ATOM\s+\d+\s+\w+\s+\w+\s+\w\s+401\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)"  # noqa: E501
             mem = []
             fi = open(fpdbqt, "r")
             for line in fi:
                 if "ATOM" in line:
-                    v = nsplit(line.strip(), " ")
-                    x = None
-                    y = None
-                    z = None
-                    copy_line = line
-                    for i in range(len(v)):
-                        if i == 6:
-                            x = float(v[i]) + tran0[0]
-                            copy_line.replace(v[i], str(x))
-                        elif i == 7:
-                            y = float(v[i]) + tran0[1]
-                            copy_line.replace(v[i], str(y))
-                        elif i == 8:
-                            z = float(v[i]) + tran0[2]
-                            copy_line.replace(v[i], str(z))
-                        else:
-                            continue
-                    mem.append(copy_line)
+                    ex_cc = extract_coordinates(line.strip(), "pdbqt")
+                    if ex_cc:
+                        copy_line = line
+                        x = float(ex_cc[0]) + tran0[0]
+                        copy_line.replace(str(ex_cc[0]), str(x))
+                        y = float(ex_cc[1]) + tran0[0]
+                        copy_line.replace(str(ex_cc[1]), str(y))
+                        z = float(ex_cc[2]) + tran0[0]
+                        copy_line.replace(str(ex_cc[2]), str(z))
+                        mem.append(copy_line)
+                    else:
+                        msg = "Molecule.topdbqt Error!\n"
+                        msg += " X Y Z coordinates not found in "
+                        msg += f"line {line.strip()}"
+                        raise ValueError(msg)
                 else:
                     mem.append(line)
             fi.close()

@@ -54,8 +54,7 @@ def main():
                         mnames.append(mname)
                 else:
                     continue
-        dock.GenVSOutput(vinalogout, dpfout, mnames, args.out)
-        return 0
+        dock.gen_vs_output(vinalogout, dpfout, mnames, args.out)
 
 
 if __name__ == "__main__":
