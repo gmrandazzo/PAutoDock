@@ -115,7 +115,6 @@ class Molecule(object):
         # Translate to the new center
         fpdbqt = str(Path(molname).resolve())
         if len(tran0) > 0:
-            # pattern = r"ATOM\s+\d+\s+\w+\s+\w+\s+\w\s+401\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)"  # noqa: E501
             mem = []
             fi = open(fpdbqt, "r")
             for line in fi:
