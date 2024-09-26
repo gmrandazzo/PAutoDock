@@ -5,6 +5,7 @@ build/*
 .vscode
 .vscode/*
 .venv
+.tox
 
 # Object files
 *.o

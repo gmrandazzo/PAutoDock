@@ -35,6 +35,7 @@ tox = "^4.2.3"
 [tool.poetry.scripts]
 pautodock = "pautodock.__main__:main"
 pautodock-recover-output = "pautodock.__recover_output__:main"
+pautodock-autogridmap2dx = "pautodock.__autogridmap2dx__:main"
 
 [build-system]
 requires = ["poetry-core"]
