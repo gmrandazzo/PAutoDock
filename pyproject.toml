@@ -7,7 +7,7 @@ profile = "black"
 
 [tool.poetry]
 name = "pautodock"
-version = "1.0.0"
+version = "1.0.1"
 description = "A simple tool to parallelize AutoDock JOBs"
 authors = ["Giuseppe Marco Randazzo <gmrandazzo@gmail.com>"]
 readme = "Readme.md"

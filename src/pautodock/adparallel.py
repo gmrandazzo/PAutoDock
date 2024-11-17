@@ -341,6 +341,7 @@ class ADParallel(object):
         vc = f'--config "{vconf_path}"'
         vc += f' --receptor "{rec_pdbqt}"'
         vc += f' --ligand "{mol_pdbqt}"'
+        vc += " --exhaustiveness 32 --num_modes 40"
         vc += f' --out "{mpath}/dock_confs_{molname}.pdbqt" >> {vinalogout}'
         return vc
 
