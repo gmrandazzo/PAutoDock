@@ -36,7 +36,7 @@ class DockingConfig:
     grid_x: int = 30
     grid_y: int = 30
     grid_z: int = 30
-    screening_mode: str = "fast"
+    screening_mode: str = "slow"
     output_path: str = "output.txt"
     autodock_enabled: bool = False
     vina_enabled: bool = True
