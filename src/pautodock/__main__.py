@@ -166,6 +166,8 @@ def main() -> int:
         dock.gsize_x = config.grid_x
         dock.gsize_y = config.grid_y
         dock.gsize_z = config.grid_z
+        dock.exhaustiveness = config.vina_exhaustiveness
+        dock.num_modes = config.vina_num_modes
 
         # Run virtual screening
         dock.virtual_screening(config.output_path)
