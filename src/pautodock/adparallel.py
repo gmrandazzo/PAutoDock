@@ -60,6 +60,8 @@ class ADParallel(object):
         self.speed = "slow"
         self.atd = True
         self.vina = True
+        self.exhaustiveness = 32
+        self.num_modes = 18
 
     def read_atom_types(self, rec_mol):
         """
@@ -192,16 +194,17 @@ class ADParallel(object):
         return grid_path, ind_path
 
     def write_vina_param_files(self, path, cc, ss):
-        f = open(path + "/vina_conf.txt", "w")
-        f.write("center_x = %.4f\n" % (cc[0]))
-        f.write("center_y = %.4f\n" % (cc[1]))
-        f.write("center_z = %.4f\n" % (cc[2]))
-        f.write("size_x = %d\n" % (ss[0]))
-        f.write("size_y = %d\n" % (ss[1]))
-        f.write("size_z = %d\n" % (ss[2]))
-        f.write("num_modes = 9\n")
-        f.close()
-        return Path(path + "/vina_conf.txt").absolute()
+        vina_conf_path = Path(path) / "vina_conf.txt"
+        with vina_conf_path.open("w", encoding="utf8") as f:
+            f.write(f"center_x = {cc[0]:.4f}\n")
+            f.write(f"center_y = {cc[1]:.4f}\n")
+            f.write(f"center_z = {cc[2]:.4f}\n")
+            f.write(f"size_x = {ss[0]}\n")
+            f.write(f"size_y = {ss[1]}\n")
+            f.write(f"size_z = {ss[2]}\n")
+            f.write(f"num_modes = {self.num_modes}\n")
+            f.write(f"exhaustiveness = {self.exhaustiveness}\n")
+        return vina_conf_path.resolve()
 
     def RunAutoGrid(self, cmd):
         atg_path = str(Path("%s/autogrid4" % (self.atdpath)).absolute())
@@ -341,7 +344,6 @@ class ADParallel(object):
         vc = f'--config "{vconf_path}"'
         vc += f' --receptor "{rec_pdbqt}"'
         vc += f' --ligand "{mol_pdbqt}"'
-        vc += " --exhaustiveness 32 --num_modes 40"
         vc += f' --out "{mpath}/dock_confs_{molname}.pdbqt" >> {vinalogout}'
         return vc
 

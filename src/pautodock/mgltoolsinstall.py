@@ -29,7 +29,7 @@ def install_mgltools(dir: str):
     directory.mkdir(exist_ok=True)
     destination = directory / "mgltools_1.5.7.tar.gz"
     dir_name = None
-
+    print("installing mgltools")
     system = platform.system()
     if system == "Linux":
         url = "https://ccsb.scripps.edu/download/532/"
