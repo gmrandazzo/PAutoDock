@@ -16,12 +16,13 @@ def ad_parallel():
     elif system == "Darwin":
         patch_value = "/opt/homebrew/bin/"
 
-    with patch("pautodock.fileutils.get_bin_path", return_value=patch_value):
-        receptor = "path/to/receptor.pdb"
-        ligand = "path/to/ligand.mol2"
-        db = "path/to/database.mol2"
-        wpath = tempfile.mkdtemp()
-        return ADParallel(receptor, ligand, db, wpath)
+    with patch("pautodock.adparallel.get_bin_path", return_value=patch_value):
+        with patch("pautodock.adparallel.install_mgltools"):
+            receptor = "path/to/receptor.pdb"
+            ligand = "path/to/ligand.mol2"
+            db = "path/to/database.mol2"
+            wpath = tempfile.mkdtemp()
+            return ADParallel(receptor, ligand, db, wpath)
 
 
 def test_init(ad_parallel):
