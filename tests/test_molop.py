@@ -1,4 +1,5 @@
 import platform
+from pathlib import Path
 from unittest.mock import mock_open, patch
 
 import pytest
@@ -7,6 +8,7 @@ from pautodock.molop import (
     Molecule,
     Receptor,
     extract_coordinates,
+    get_first_pose_baricentre,
     get_mol_baricentre,
     nsplit,
 )
@@ -154,19 +156,67 @@ def test_molecule_topdbqt(molecule):
 def test_molecule_topdbqt_with_translation(tmp_path):
     mol2 = tmp_path / "test.mol2"
     mol2.write_text("@<TRIPOS>MOLECULE\nTestMol\n")
+    prefix = "ATOM      1  N10 ZMA A 401    "
     pdbqt = tmp_path / "test.pdbqt"
     pdbqt.write_text(
-        "ATOM      1  N10 ZMA A 401      -9.420  -9.544  56.644  0.00  0.00    +0.000 NA\n"  # noqa: E501
-        "ATOM      2  C11 ZMA A 401      -8.953  -8.593  55.842  0.00  0.00    +0.000 C\n"  # noqa: E501
-        "REMARK unchanged line\n"
+        prefix
+        + "%8.3f%8.3f%8.3f" % (-9.420, -9.544, 56.644)
+        + "  0.00  0.00    +0.000 NA\n"
+        + prefix
+        + "%8.3f%8.3f%8.3f" % (-8.953, -8.593, 55.842)
+        + "  0.00  0.00    +0.000 C\n"
+        + "REMARK unchanged line\n"
     )
     with patch("pautodock.molop.get_bin_path", return_value="/usr/bin/"):
         with patch("subprocess.call") as mock_call:
             mol = Molecule(str(mol2), "/path/to/mgl")
             result = mol.topdbqt([1.0, 2.0, 3.0])
             mock_call.assert_called_once()
-    lines = pdbqt.read_text().splitlines()
-    assert "  -8.420  -7.544  59.644" in lines[0]
-    assert "  -7.953  -6.593  58.842" in lines[1]
-    assert lines[2] == "REMARK unchanged line"
-    assert result == str(pdbqt.resolve())
+    # the molecule baricentre must land on the target center
+    cc = get_mol_baricentre(result)
+    assert abs(cc[0] - 1.0) < 1e-3
+    assert abs(cc[1] - 2.0) < 1e-3
+    assert abs(cc[2] - 3.0) < 1e-3
+    assert "REMARK unchanged line" in Path(result).read_text()
+
+
+def test_extract_coordinates_spec_aligned():
+    # 30-char prefix, coordinates in the spec fields 31-54 (1-based)
+    line = (
+        "ATOM      1  C1  LIG A   1    "
+        + "%8.3f%8.3f%8.3f" % (-123.456, 7.123, -0.5)
+        + "  0.00  0.00    +0.000 C"
+    )
+    assert extract_coordinates(line, "pdbqt") == [-123.456, 7.123, -0.5]
+    assert extract_coordinates(line, "pdb") == [-123.456, 7.123, -0.5]
+
+
+def test_get_mol_baricentre_pdb_atom_records(tmp_path):
+    pdb = tmp_path / "prot.pdb"
+    pdb.write_text(
+        "ATOM      1  CA  ALA A   1    "
+        + "%8.3f%8.3f%8.3f" % (1.0, 2.0, 3.0)
+        + "  1.00  0.00           C\n"
+        "ATOM      2  CA  ALA A   2    "
+        + "%8.3f%8.3f%8.3f" % (3.0, 4.0, 5.0)
+        + "  1.00  0.00           C\n"
+    )
+    assert get_mol_baricentre(str(pdb)) == [2.0, 3.0, 4.0]
+
+
+def test_get_first_pose_baricentre(tmp_path):
+    pdbqt = tmp_path / "poses.pdbqt"
+    prefix = "ATOM      1  N10 ZMA A 401    "
+    pdbqt.write_text(
+        "MODEL 1\n"
+        + prefix
+        + "%8.3f%8.3f%8.3f" % (1.0, 1.0, 1.0)
+        + "  0.00  0.00    +0.000 NA\n"
+        + "ENDMDL\n"
+        "MODEL 2\n"
+        + prefix
+        + "%8.3f%8.3f%8.3f" % (50.0, 50.0, 50.0)
+        + "  0.00  0.00    +0.000 NA\n"
+        + "ENDMDL\n"
+    )
+    assert get_first_pose_baricentre(str(pdbqt)) == [1.0, 1.0, 1.0]

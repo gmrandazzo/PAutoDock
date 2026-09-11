@@ -102,14 +102,20 @@ class ADParallel(object):
         path_ = Path(path).absolute()
         rat_str, _ = self.read_atom_types(rec_pdbqt)
         lat_str, lat_lst = self.read_atom_types(path + "/" + mol_pdbqt)
+        # AutoGrid expresses the box in grid points while Vina uses
+        # Angstrom: convert the grid size (Angstrom) to grid points
+        # at the AutoGrid spacing used below.
+        spacing = 0.33
+        npts_x = int(round(self.gsize_x / spacing))
+        npts_y = int(round(self.gsize_y / spacing))
+        npts_z = int(round(self.gsize_z / spacing))
         # write the GPF
         f = open(path + "/grid.gpf", "w")
         f.write(
-            "npts %d %d %d # num.grid points in xyz\n"
-            % (self.gsize_x, self.gsize_y, self.gsize_z)
+            "npts %d %d %d # num.grid points in xyz\n" % (npts_x, npts_y, npts_z)
         )
         f.write("gridfld %s/receptor_model.maps.fld     # grid_data_file\n" % (path_))
-        f.write("spacing 0.33 # spacing(A)\n")
+        f.write("spacing %g # spacing(A)\n" % (spacing))
         f.write("receptor_types %s # receptor atom types\n" % (rat_str))
         f.write("ligand_types %s # ligand atom types\n" % (lat_str))
         f.write("receptor %s    # macromolecule\n" % (rec_pdbqt))
@@ -153,7 +159,8 @@ class ADParallel(object):
         f.write("# initial orientation\n")
         f.write("dihe0 random ")
         f.write("# initial dihedrals (relative) or random\n")
-        f.write("torsdof 5 ")
+        n_tors = molop.read_active_torsions(str(Path(path) / mol_pdbqt))
+        f.write("torsdof %d " % (n_tors))
         f.write("# torsional degrees of freedom\n")
         f.write("rmstol 2.0  # cluster_tolerance/A\n")
         f.write("extnrg 1000.0  # external grid energy\n")
@@ -266,19 +273,28 @@ class ADParallel(object):
                 r_rmsd.append(float(v[5]))
         f.close()
         header.append("Binding Energy Average")
-        r.append(round(sum(benergy) / float(len(benergy)), 3))
         header.append("Cluster RMSD Average")
-        r.append(round(sum(c_rmsd) / float(len(c_rmsd)), 3))
         header.append("Ref. RMSD Average")
-        r.append(round(sum(r_rmsd) / float(len(r_rmsd)), 3))
+        if len(benergy) > 0:
+            r.append(round(sum(benergy) / float(len(benergy)), 3))
+            r.append(round(sum(c_rmsd) / float(len(c_rmsd)), 3))
+            r.append(round(sum(r_rmsd) / float(len(r_rmsd)), 3))
+        else:
+            r.extend([9999.0, 9999.0, 9999.0])
         return header, r
 
     def LigandPosesBaricentreDistance(self, dock_pdbqt: str) -> float:
         """
-        Calculate the distance between the ligand and docking pose baricentres.
+        Calculate the distance between the expected centre and the
+        baricentre of the best (first) docking pose.
         """
-        poses_cc = molop.get_mol_baricentre(dock_pdbqt)
-        if int(self.cx) == 0:
+        poses_cc = molop.get_first_pose_baricentre(dock_pdbqt)
+        if (
+            self.ligand is not None
+            and self.cx == 0.0
+            and self.cy == 0.0
+            and self.cz == 0.0
+        ):
             self.cx, self.cy, self.cz = molop.get_mol_baricentre(self.ligand)
         return math.sqrt(
             (self.cx - poses_cc[0]) ** 2
@@ -291,8 +307,14 @@ class ADParallel(object):
         f = open(str(Path(ofile).absolute()), "r")
         getres = False
         for line in f:
-            if getres:
-                # Filter double outputs
+            if "-----+------------+----------+----------" in line:
+                # A new affinity table starts here: reset the results.
+                # A resumed run appends a whole new table to the log and
+                # only the last one matches the written docking poses.
+                benergy = []
+                getres = True
+            elif getres:
+                # Filter the lines after the table
                 if "Writing output ... done." in line or "AutoDock Vina" in line:
                     getres = False
                 else:
@@ -301,12 +323,6 @@ class ADParallel(object):
                         benergy.append(float(v[1]))
                     except ValueError as err:
                         logging.error("Error with file %s - %s" % (ofile, err))
-            else:
-                if "-----+------------+----------+----------" in line:
-                    getres = True
-                else:
-                    continue
-
         f.close()
         if len(benergy) > 0:
             return (

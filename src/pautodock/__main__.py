@@ -70,9 +70,15 @@ def parse_arguments() -> DockingConfig:
     grid_group.add_argument("--cx", type=float, help="Grid center X coordinate")
     grid_group.add_argument("--cy", type=float, help="Grid center Y coordinate")
     grid_group.add_argument("--cz", type=float, help="Grid center Z coordinate")
-    grid_group.add_argument("--gx", type=int, default=30, help="Grid size X")
-    grid_group.add_argument("--gy", type=int, default=30, help="Grid size Y")
-    grid_group.add_argument("--gz", type=int, default=30, help="Grid size Z")
+    grid_group.add_argument(
+        "--gx", type=int, default=30, help="Grid size X (in Angstrom)"
+    )
+    grid_group.add_argument(
+        "--gy", type=int, default=30, help="Grid size Y (in Angstrom)"
+    )
+    grid_group.add_argument(
+        "--gz", type=int, default=30, help="Grid size Z (in Angstrom)"
+    )
 
     # Docking configuration
     dock_group = parser.add_argument_group("Docking Configuration")
