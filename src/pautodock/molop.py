@@ -96,7 +96,7 @@ class Molecule(object):
         self.mglpath = str(Path(mglpath).resolve())
         self.obabel_path = get_bin_path("obabel")
 
-    def topdbqt(self, tran0=[]):
+    def topdbqt(self, tran0=None):
         """
         tran0 is the vector of centre x,y,z where to translate the molecule
         """
@@ -114,20 +114,23 @@ class Molecule(object):
         subprocess.call([cmd], shell=True)
         # Translate to the new center
         fpdbqt = str(Path(molname).resolve())
-        if len(tran0) > 0:
+        if tran0:
             mem = []
-            fi = open(fpdbqt, "r")
+            fi = open(fpdbqt, "r", encoding="utf-8")
             for line in fi:
                 if "ATOM" in line:
                     ex_cc = extract_coordinates(line.strip(), "pdbqt")
                     if ex_cc:
-                        copy_line = line
-                        x = float(ex_cc[0]) + tran0[0]
-                        copy_line.replace(str(ex_cc[0]), str(x))
-                        y = float(ex_cc[1]) + tran0[0]
-                        copy_line.replace(str(ex_cc[1]), str(y))
-                        z = float(ex_cc[2]) + tran0[0]
-                        copy_line.replace(str(ex_cc[2]), str(z))
+                        x = ex_cc[0] + tran0[0]
+                        y = ex_cc[1] + tran0[1]
+                        z = ex_cc[2] + tran0[2]
+                        copy_line = "%s%8.3f%8.3f%8.3f%s" % (
+                            line[:31],
+                            x,
+                            y,
+                            z,
+                            line[54:],
+                        )
                         mem.append(copy_line)
                     else:
                         msg = "Molecule.topdbqt Error!\n"
@@ -138,7 +141,7 @@ class Molecule(object):
                     mem.append(line)
             fi.close()
 
-            fo = open(fpdbqt, "w")
+            fo = open(fpdbqt, "w", encoding="utf-8")
             for line in mem:
                 fo.write(line)
             fo.close()

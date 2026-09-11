@@ -36,7 +36,7 @@ class DockingConfig:
     grid_x: int = 30
     grid_y: int = 30
     grid_z: int = 30
-    screening_mode: str = "slow"
+    screening_mode: str = "fast"
     output_path: str = "output.txt"
     autodock_enabled: bool = False
     vina_enabled: bool = True
@@ -111,7 +111,7 @@ def parse_arguments() -> DockingConfig:
         parser.error("Either --ligand or --db must be provided")
 
     # Validate grid center coordinates when no ligand is provided
-    if not args.ligand and not all([args.cx, args.cy, args.cz]):
+    if not args.ligand and any(c is None for c in (args.cx, args.cy, args.cz)):
         parser.error(
             "Grid center coordinates (--cx, --cy, --cz) are required when no ligand is provided"
         )

@@ -151,16 +151,22 @@ def test_molecule_topdbqt(molecule):
             assert result.endswith("test.pdbqt")
 
 
-def test_molecule_topdbqt_with_translation(molecule):
-    mock_file_content = """
-ATOM      1  N10 ZMA A 401      -9.420  -9.544  56.644  0.00  0.00    +0.000 NA
-ATOM      2  C11 ZMA A 401      -8.953  -8.593  55.842  0.00  0.00    +0.000 C
-ATOM      3  N12 ZMA A 401      -8.585  -8.857  54.578  0.00  0.00    +0.000 NA
-    """
-    with patch("subprocess.call"):
-        with patch(
-            "builtins.open", mock_open(read_data=mock_file_content)
-        ) as mock_file:
-            result = molecule.topdbqt([1.0, 1.0, 1.0])
-            assert result.endswith("test.pdbqt")
-            mock_file.assert_called
+def test_molecule_topdbqt_with_translation(tmp_path):
+    mol2 = tmp_path / "test.mol2"
+    mol2.write_text("@<TRIPOS>MOLECULE\nTestMol\n")
+    pdbqt = tmp_path / "test.pdbqt"
+    pdbqt.write_text(
+        "ATOM      1  N10 ZMA A 401      -9.420  -9.544  56.644  0.00  0.00    +0.000 NA\n"  # noqa: E501
+        "ATOM      2  C11 ZMA A 401      -8.953  -8.593  55.842  0.00  0.00    +0.000 C\n"  # noqa: E501
+        "REMARK unchanged line\n"
+    )
+    with patch("pautodock.molop.get_bin_path", return_value="/usr/bin/"):
+        with patch("subprocess.call") as mock_call:
+            mol = Molecule(str(mol2), "/path/to/mgl")
+            result = mol.topdbqt([1.0, 2.0, 3.0])
+            mock_call.assert_called_once()
+    lines = pdbqt.read_text().splitlines()
+    assert "  -8.420  -7.544  59.644" in lines[0]
+    assert "  -7.953  -6.593  58.842" in lines[1]
+    assert lines[2] == "REMARK unchanged line"
+    assert result == str(pdbqt.resolve())

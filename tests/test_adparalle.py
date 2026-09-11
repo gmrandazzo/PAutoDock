@@ -33,7 +33,7 @@ def test_init(ad_parallel):
     assert ad_parallel.gsize_x == 30
     assert ad_parallel.gsize_y == 30
     assert ad_parallel.gsize_z == 30
-    assert ad_parallel.speed == "slow"
+    assert ad_parallel.speed == "fast"
     assert ad_parallel.atd is True
     assert ad_parallel.vina is True
 
@@ -67,6 +67,28 @@ def test_write_vina_param_files(ad_parallel, tmp_path):
         assert "size_x = 30" in content
         assert "size_y = 30" in content
         assert "size_z = 30" in content
+
+
+def test_write_autodock_param_files_speed_modes(ad_parallel, tmp_path):
+    rec_pdbqt = tmp_path / "rec.pdbqt"
+    rec_pdbqt.write_text(
+        "ATOM      1  CA  TYR A1161     -10.160  10.285   7.878  1.00 56.11     0.191 C\n"  # noqa: E501
+    )
+    mol_pdbqt = tmp_path / "mol.pdbqt"
+    mol_pdbqt.write_text(
+        "ATOM      1  CA  TYR A1161     -10.160  10.285   7.878  1.00 56.11     0.191 C\n"  # noqa: E501
+    )
+    for speed, evals in [
+        ("fast", "ga_num_evals 250000 "),
+        ("normal", "ga_num_evals 2500000 "),
+        ("thorough", "ga_num_evals 25000000 "),
+    ]:
+        ad_parallel.speed = speed
+        _, dpf_path = ad_parallel.write_autodock_param_files(
+            str(tmp_path), str(rec_pdbqt), mol_pdbqt.name, [0.0, 0.0, 0.0]
+        )
+        with open(dpf_path, "r") as f:
+            assert evals in f.read()
 
 
 def test_read_vina_output(ad_parallel, tmp_path):

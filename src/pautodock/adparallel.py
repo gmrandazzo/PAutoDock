@@ -19,6 +19,7 @@ import math
 import multiprocessing
 import os
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -29,23 +30,6 @@ from pautodock.mgltoolsinstall import install_mgltools
 
 class ADParallel(object):
     def __init__(self, receptor, ligand, db, wpath):
-        try:
-            self.atdpath = get_bin_path("autodock")
-        except ValueError:
-            self.atdpath = None
-        try:
-            self.vinapath = get_bin_path("vina")
-        except ValueError:
-            self.vinapath = None
-
-        if not self.atdpath and not self.vinapath:
-            msg = "Error!! autodock and vina are not installed!\n"
-            msg += "Unable to run any calculation."
-            raise ValueError(msg)
-
-        self.mglpath = Path(f"{Path.home()}/.pautodock/MGLTools")
-        if not self.mglpath.exists():
-            install_mgltools(f"{Path.home()}/.pautodock")
         self.receptor = receptor
         self.ligand = ligand
         self.db = db
@@ -57,11 +41,39 @@ class ADParallel(object):
         self.gsize_x = 30
         self.gsize_y = 30
         self.gsize_z = 30
-        self.speed = "slow"
+        self.speed = "fast"
         self.atd = True
         self.vina = True
         self.exhaustiveness = 32
         self.num_modes = 18
+
+    def _check_binaries(self):
+        """
+        Resolve the docking engine binaries and ensure MGLTools is
+        installed. Called lazily by virtual_screening so that result
+        recovery does not require the docking binaries.
+        """
+        try:
+            self.atdpath = get_bin_path("autodock4")
+        except ValueError:
+            self.atdpath = None
+        try:
+            self.vinapath = get_bin_path("vina")
+        except ValueError:
+            self.vinapath = None
+
+        if self.atd and self.atdpath is None:
+            msg = "Error!! autodock4 is not installed but AutoDock "
+            msg += "is enabled (atd=ON). Use --atd OFF to skip it."
+            raise ValueError(msg)
+        if self.vina and self.vinapath is None:
+            msg = "Error!! vina is not installed but Vina "
+            msg += "is enabled (vina=ON). Use --vina OFF to skip it."
+            raise ValueError(msg)
+
+        self.mglpath = Path(f"{Path.home()}/.pautodock/MGLTools")
+        if not self.mglpath.exists():
+            install_mgltools(f"{Path.home()}/.pautodock")
 
     def read_atom_types(self, rec_mol):
         """
@@ -149,9 +161,9 @@ class ADParallel(object):
         f.write("# max initial energy; max number of retries\n")
         f.write("ga_pop_size 150 ")
         f.write("# number of individuals in population\n")
-        if self.speed == "slow":
+        if self.speed == "thorough":
             f.write("ga_num_evals 25000000 ")
-        elif self.speed == "medium":
+        elif self.speed == "normal":
             f.write("ga_num_evals 2500000 ")
         else:
             f.write("ga_num_evals 250000 ")
@@ -208,15 +220,24 @@ class ADParallel(object):
 
     def RunAutoGrid(self, cmd):
         atg_path = str(Path("%s/autogrid4" % (self.atdpath)).absolute())
-        return os.system("%s %s" % (atg_path, cmd))
+        ret = os.system("%s %s" % (atg_path, cmd))
+        if ret != 0:
+            raise RuntimeError("autogrid4 failed with exit code %d: %s" % (ret, cmd))
+        return ret
 
     def RunAutoDock(self, cmd):
         atd_path = str(Path("%s/autodock4" % (self.atdpath)).absolute())
-        return os.system("%s %s" % (atd_path, cmd))
+        ret = os.system("%s %s" % (atd_path, cmd))
+        if ret != 0:
+            raise RuntimeError("autodock4 failed with exit code %d: %s" % (ret, cmd))
+        return ret
 
     def RunVina(self, cmd):
         vina_path = str(Path("%s/vina" % (self.vinapath)).absolute())
-        return os.system("%s %s" % (vina_path, cmd))
+        ret = os.system("%s %s" % (vina_path, cmd))
+        if ret != 0:
+            raise RuntimeError("vina failed with exit code %d: %s" % (ret, cmd))
+        return ret
 
     def ReadOutput(self, ofile):
         r = []
@@ -319,23 +340,27 @@ class ADParallel(object):
         for i in range(len(mnames)):
             h = []
             r = []
-            if len(dpfout) > 0:
-                if Path(dpfout[i]).is_file():
-                    h, r = self.ReadOutput(dpfout[i])
+            if len(dpfout) > i and Path(dpfout[i]).is_file():
+                h, r = self.ReadOutput(dpfout[i])
             if firstline:
                 firstline = False
                 fo.write("Molname;")
                 for j in range(len(h)):
                     fo.write("%s;" % (h[j]))
-                fo.write("Avg. vina Binding Energy;")
-                fo.write("Min vina Binding Energy;Max vina Binding Energy;")
+                if len(vbind) > 0:
+                    fo.write("Avg. vina Binding Energy;")
+                    fo.write("Min vina Binding Energy;Max vina Binding Energy;")
                 fo.write("Template-Ligand Baricenter Distance (docking pose check)\n")
             fo.write("%s;" % (mnames[i]))
             for j in range(len(r)):
                 fo.write("%s;" % (r[j]))
-            fo.write(
-                "%f;%f;%f;%f\n" % (vbind[i][0], vbind[i][1], vbind[i][2], vbind[i][3])
-            )
+            if len(vbind) > i:
+                fo.write(
+                    "%f;%f;%f;%f\n"
+                    % (vbind[i][0], vbind[i][1], vbind[i][2], vbind[i][3])
+                )
+            else:
+                fo.write("9999.000000;\n")
         fo.close()
 
     def make_vina_cmd(
@@ -347,7 +372,36 @@ class ADParallel(object):
         vc += f' --out "{mpath}/dock_confs_{molname}.pdbqt" >> {vinalogout}'
         return vc
 
+    def _ligand_as_mol2(self, tmppath):
+        """
+        Make a mol2 copy of the single ligand inside tmppath so that
+        it can be processed like a one-molecule database.
+        """
+        lig_name = Path(self.ligand).name
+        mol2_path = str(Path(tmppath) / (Path(self.ligand).stem + ".mol2"))
+        if lig_name.lower().endswith(".mol2"):
+            shutil.copy(self.ligand, mol2_path)
+        elif lig_name.lower().endswith(".pdb"):
+            obabel = Path(get_bin_path("obabel")) / "obabel"
+            subprocess.run(
+                [
+                    str(obabel),
+                    "-ipdb",
+                    self.ligand,
+                    "-omol2",
+                    "-O",
+                    mol2_path,
+                ],
+                check=True,
+            )
+        else:
+            msg = "Ligand format not supported %s. " % (lig_name)
+            msg += "Supported formats: mol2 or pdb"
+            raise ValueError(msg)
+        return mol2_path
+
     def virtual_screening(self, otab):
+        self._check_binaries()
         # Prepare the receptor
         rec = molop.Receptor(self.receptor, self.mglpath)
         rec_pdbqt = rec.topdbqt()
@@ -355,7 +409,10 @@ class ADParallel(object):
             self.cx, self.cy, self.cz = molop.get_mol_baricentre(self.ligand)
         # Prepare the database split multi mol2
         tmppath = tempfile.mkdtemp()
-        mol2lst = multimol2op.split_mol2(self.db, tmppath)
+        if self.db is not None:
+            mol2lst = multimol2op.split_mol2(self.db, tmppath)
+        else:
+            mol2lst = [self._ligand_as_mol2(tmppath)]
         agcmdlst = []
         adcmdlst = []
         vinacmdlst = []
@@ -412,7 +469,10 @@ class ADParallel(object):
                         )
                     )
             else:
-                vinalogout.append(f"{mpath}/vina_log.txt")
+                if self.vina:
+                    vinalogout.append(f"{mpath}/vina_log.txt")
+                if self.atd:
+                    dpfout.append(f"{mpath}/ind.dlg")
         shutil.rmtree(tmppath)
         ncpu = multiprocessing.cpu_count()
         if self.atd:
