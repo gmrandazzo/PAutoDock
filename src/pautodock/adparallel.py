@@ -46,6 +46,7 @@ class ADParallel(object):
         self.vina = True
         self.exhaustiveness = 32
         self.num_modes = 18
+        self.ph = None
 
     def _check_binaries(self):
         """
@@ -395,21 +396,18 @@ class ADParallel(object):
         """
         lig_name = Path(self.ligand).name
         mol2_path = str(Path(tmppath) / (Path(self.ligand).stem + ".mol2"))
-        if lig_name.lower().endswith(".mol2"):
+        if lig_name.lower().endswith(".mol2") and self.ph is None:
             shutil.copy(self.ligand, mol2_path)
-        elif lig_name.lower().endswith(".pdb"):
+        elif lig_name.lower().endswith((".mol2", ".pdb")):
+            ifmt = "-ipdb"
+            if lig_name.lower().endswith(".mol2"):
+                ifmt = "-imol2"
             obabel = Path(get_bin_path("obabel")) / "obabel"
-            subprocess.run(
-                [
-                    str(obabel),
-                    "-ipdb",
-                    self.ligand,
-                    "-omol2",
-                    "-O",
-                    mol2_path,
-                ],
-                check=True,
-            )
+            cmd = [str(obabel), ifmt, self.ligand, "-omol2", "-O", mol2_path]
+            if self.ph is not None:
+                # Protonate the ligand at the given pH
+                cmd += ["-p", str(self.ph)]
+            subprocess.run(cmd, check=True)
         else:
             msg = "Ligand format not supported %s. " % (lig_name)
             msg += "Supported formats: mol2 or pdb"
@@ -451,7 +449,7 @@ class ADParallel(object):
                 mol = molop.Molecule(
                     str(Path(mpath + "/" + molname_ext).absolute()), self.mglpath
                 )
-                mol_pdbqt = mol.topdbqt([self.cx, self.cy, self.cz])
+                mol_pdbqt = mol.topdbqt([self.cx, self.cy, self.cz], ph=self.ph)
                 mol_pdbqt_name = str(Path(mol_pdbqt).resolve().name)
                 if self.atd:
                     gpf_path, dpf_path = self.write_autodock_param_files(

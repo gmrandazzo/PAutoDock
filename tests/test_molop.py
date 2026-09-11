@@ -220,3 +220,25 @@ def test_get_first_pose_baricentre(tmp_path):
         + "ENDMDL\n"
     )
     assert get_first_pose_baricentre(str(pdbqt)) == [1.0, 1.0, 1.0]
+
+
+def test_molecule_topdbqt_with_ph(tmp_path):
+    mol2 = tmp_path / "test.mol2"
+    mol2.write_text("@<TRIPOS>MOLECULE\nTestMol\n")
+    with patch("pautodock.molop.get_bin_path", return_value="/usr/bin/"):
+        with patch("subprocess.call") as mock_call:
+            mol = Molecule(str(mol2), "/path/to/mgl")
+            mol.topdbqt(ph=7.4)
+            cmd = mock_call.call_args[0][0][0]
+            assert "-p 7.4" in cmd
+
+
+def test_molecule_topdbqt_without_ph(tmp_path):
+    mol2 = tmp_path / "test.mol2"
+    mol2.write_text("@<TRIPOS>MOLECULE\nTestMol\n")
+    with patch("pautodock.molop.get_bin_path", return_value="/usr/bin/"):
+        with patch("subprocess.call") as mock_call:
+            mol = Molecule(str(mol2), "/path/to/mgl")
+            mol.topdbqt()
+            cmd = mock_call.call_args[0][0][0]
+            assert " -p " not in cmd

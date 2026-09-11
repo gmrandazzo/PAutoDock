@@ -42,6 +42,7 @@ class DockingConfig:
     vina_enabled: bool = True
     vina_exhaustiveness: int = 32
     vina_num_modes: int = 18
+    ph: Optional[float] = None
 
 
 def parse_arguments() -> DockingConfig:
@@ -104,6 +105,12 @@ def parse_arguments() -> DockingConfig:
     dock_group.add_argument(
         "--num_modes", type=int, default=18, help="Number of binding modes to generate"
     )
+    dock_group.add_argument(
+        "--ph",
+        type=float,
+        default=None,
+        help="Protonate the ligands at this pH (ligands only, the receptor is not affected)",
+    )
 
     args = parser.parse_args(sys.argv[1:])
 
@@ -122,6 +129,10 @@ def parse_arguments() -> DockingConfig:
             "Grid center coordinates (--cx, --cy, --cz) are required when no ligand is provided"
         )
 
+    # Validate the protonation pH
+    if args.ph is not None and not 0.0 <= args.ph <= 14.0:
+        parser.error("--ph must be between 0.0 and 14.0")
+
     return DockingConfig(
         receptor=args.receptor,
         ligand=args.ligand,
@@ -139,6 +150,7 @@ def parse_arguments() -> DockingConfig:
         vina_enabled=args.vina == "ON",
         vina_exhaustiveness=args.exhaustiveness,
         vina_num_modes=args.num_modes,
+        ph=args.ph,
     )
 
 
@@ -174,6 +186,7 @@ def main() -> int:
         dock.gsize_z = config.grid_z
         dock.exhaustiveness = config.vina_exhaustiveness
         dock.num_modes = config.vina_num_modes
+        dock.ph = config.ph
 
         # Run virtual screening
         dock.virtual_screening(config.output_path)

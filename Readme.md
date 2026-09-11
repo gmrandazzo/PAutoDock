@@ -71,3 +71,12 @@ To use PAutodock for parallelizing AutoDock jobs, follow these steps:
    ```bash
    cd data/3EML
    pautodock --receptor rec.pdb --cx -9.06364 --cy -7.1446 --cz 55.8626 --db dataset.mol2 --wdir example_calculation --out screening_results.csv --vina ON --atd OFF
+   ```
+
+   To protonate the ligands at a specific pH (e.g. physiological pH 7.4), add the `--ph` option:
+
+   ```bash
+   pautodock --receptor rec.pdb --cx -9.06364 --cy -7.1446 --cz 55.8626 --db dataset.mol2 --wdir example_calculation --out screening_results.csv --ph 7.4
+   ```
+
+   The `--ph` option affects the ligands only; the receptor is never protonated.

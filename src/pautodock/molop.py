@@ -141,10 +141,12 @@ class Molecule(object):
         self.mglpath = str(Path(mglpath).resolve())
         self.obabel_path = get_bin_path("obabel")
 
-    def topdbqt(self, center=None):
+    def topdbqt(self, center=None, ph=None):
         """
         center is the x,y,z point where the molecule baricentre
         will be translated to.
+
+        ph, when set, protonates the molecule at the given pH
         """
         obabel = f"{self.obabel_path}/obabel"
         molname = self.molecule
@@ -157,6 +159,9 @@ class Molecule(object):
             self.molecule,
             molname,
         )
+        if ph is not None:
+            # Protonate the ligand at the given pH
+            cmd += " -p %s" % (ph)
         subprocess.call([cmd], shell=True)
         # Translate the molecule so that its baricentre is at center
         fpdbqt = str(Path(molname).resolve())
