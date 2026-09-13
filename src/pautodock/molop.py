@@ -13,6 +13,8 @@ Provides the basic operation for molecular files.
 
 """
 
+from __future__ import annotations
+
 import logging
 import subprocess
 from pathlib import Path
@@ -20,11 +22,11 @@ from pathlib import Path
 from pautodock.fileutils import get_bin_path
 
 
-def nsplit(s, delim=None):
+def nsplit(s: str, delim: str | None = None) -> list[str]:
     return [x for x in s.split(delim) if x]
 
 
-def extract_coordinates(line, ftype):
+def extract_coordinates(line: str, ftype: str) -> list[float] | None:
     # Coordinates live in the fixed-width fields 31-38, 39-46, 47-54
     # (1-based PDB specification).
     if ftype == "pdb":
@@ -42,7 +44,7 @@ def extract_coordinates(line, ftype):
     return None
 
 
-def get_mol_baricentre(mol: str) -> list:
+def get_mol_baricentre(mol: str) -> list[float]:
     """
     Get the geometric centre (unweighted mean of atomic coordinates)
     of a molecule.
@@ -75,7 +77,7 @@ def get_mol_baricentre(mol: str) -> list:
     return [cc[i] / float(n) for i in range(len(cc))]
 
 
-def get_first_pose_baricentre(mol: str) -> list:
+def get_first_pose_baricentre(mol: str) -> list[float]:
     """
     Get the geometric centre of the first pose (up to ENDMDL) of a
     multimodel pdbqt file, e.g. vina docking poses.
@@ -116,11 +118,11 @@ def read_active_torsions(pdbqt: str) -> int:
 
 
 class Receptor(object):
-    def __init__(self, receptor, mglpath):
+    def __init__(self, receptor: str, mglpath: str | Path) -> None:
         self.receptor = receptor
         self.mglpath = str(Path(mglpath).resolve())
 
-    def topdbqt(self):
+    def topdbqt(self) -> str:
         python_env = (
             "export LD_LIBRARY_PATH=\"%s/lib\"${LD_LIBRARY_PATH:+':'$LD_LIBRARY_PATH};"
             % (self.mglpath)
@@ -136,12 +138,14 @@ class Receptor(object):
 
 
 class Molecule(object):
-    def __init__(self, molecule, mglpath):
+    def __init__(self, molecule: str, mglpath: str | Path) -> None:
         self.molecule = molecule
         self.mglpath = str(Path(mglpath).resolve())
         self.obabel_path = get_bin_path("obabel")
 
-    def topdbqt(self, center=None, ph=None):
+    def topdbqt(
+        self, center: list[float] | None = None, ph: float | None = None
+    ) -> str:
         """
         center is the x,y,z point where the molecule baricentre
         will be translated to.

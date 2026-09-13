@@ -11,21 +11,23 @@ go to "http://www.gnu.org/licenses/gpl-3.0.en.html"
 
 Provides a commandline script to recover the output result of a virtualscreening.
 """
+from __future__ import annotations
 
 import argparse
 import sys
+from typing import TextIO
 
 
 class AutoGridMap2DX:
-    def __init__(self, map_file=None):
+    def __init__(self, map_file: str | None = None) -> None:
         self.name = ""
-        self.npts = [0, 0, 0]
-        self.n = [0, 0, 0]
-        self.center = [0, 0, 0]
-        self.origin = [0, 0, 0]
+        self.npts: list[int] = [0, 0, 0]
+        self.n: list[int] = [0, 0, 0]
+        self.center: list[float] = [0, 0, 0]
+        self.origin: list[float] = [0, 0, 0]
         self.nelem = 0
         self.spacing = 0.0
-        self.values = []
+        self.values: list[float] = []
         self.datafile = ""
         self.molecule = ""
         self.paramfile = ""
@@ -35,7 +37,7 @@ class AutoGridMap2DX:
             with open(map_file, "r") as fp:
                 self.read(fp)
 
-    def read(self, fp):
+    def read(self, fp: TextIO) -> None:
         for i in range(6):
             line = fp.readline()
             if i == 0:
@@ -61,7 +63,7 @@ class AutoGridMap2DX:
         for i in range(3):
             self.origin[i] = self.center[i] - self.npts[i] / 2 * self.spacing
 
-    def writeDX(self, fname):
+    def writeDX(self, fname: str) -> None:
         with open(fname, "w") as fp:
             nx, ny, nz = self.n
             ori = self.origin
@@ -100,7 +102,7 @@ class AutoGridMap2DX:
             print('component "data" value 3', file=fp)
 
 
-def main():
+def main() -> None:
     """
     main.py
     """

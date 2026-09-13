@@ -12,6 +12,8 @@ go to "http://www.gnu.org/licenses/gpl-3.0.en.html"
 Provides the basic operation for molecular files.
 
 """
+from __future__ import annotations
+
 import logging
 import platform
 import tarfile
@@ -20,22 +22,25 @@ from pathlib import Path
 import requests
 
 
-def get_bin_path(bin_name: str):
+def get_bin_path(bin_name: str) -> str:
     """
     Get the path to the bin_name executable based on the operating system.
     """
-    paths = {"Linux": ["/usr/bin/", "/usr/local/bin"], "Darwin": ["/opt/homebrew/bin/"]}
+    paths: dict[str, list[str]] = {
+        "Linux": ["/usr/bin/", "/usr/local/bin"],
+        "Darwin": ["/opt/homebrew/bin/"],
+    }
     system = platform.system()
     if system not in paths:
         raise ValueError("Platform not supported")
 
-    for bin_path in paths.get(system):
+    for bin_path in paths[system]:
         if bin_path and Path(f"{bin_path}/{bin_name}").exists():
             return bin_path
     raise ValueError(f"Unable to find {bin_name} installed.")
 
 
-def download_file(url, destination):
+def download_file(url: str, destination: str | Path) -> bool:
     """
     Download a file from a URL to a local destination.
     """
@@ -52,7 +57,7 @@ def download_file(url, destination):
     return True
 
 
-def extract_tar_gz(file_path, extract_to):
+def extract_tar_gz(file_path: str | Path, extract_to: str | Path) -> bool:
     """
     Extract a .tar.gz file to a specified directory.
     """

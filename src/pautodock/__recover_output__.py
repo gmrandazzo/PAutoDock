@@ -21,7 +21,7 @@ from pautodock import molop
 from pautodock.adparallel import ADParallel
 
 
-def main():
+def main() -> None:
     """
     main.py
     """

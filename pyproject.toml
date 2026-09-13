@@ -5,6 +5,12 @@ target-version = ["py311"]
 [tool.isort]
 profile = "black"
 
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "src"
+files = "src"
+strict = true
+
 [tool.poetry]
 name = "pautodock"
 version = "1.1.0"
@@ -31,6 +37,7 @@ pytest = "^7.4.0"
 pytest-cov = "^4.1.0"
 pre-commit = "^3.3.3"
 tox = "^4.2.3"
+mypy = "^2.3.1"
 
 [tool.poetry.scripts]
 pautodock = "pautodock.__main__:main"

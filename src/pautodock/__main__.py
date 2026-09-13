@@ -174,6 +174,9 @@ def main() -> int:
 
         # Configure docking parameters
         if config.ligand is None:
+            assert config.center_x is not None
+            assert config.center_y is not None
+            assert config.center_z is not None
             dock.cx = config.center_x
             dock.cy = config.center_y
             dock.cz = config.center_z

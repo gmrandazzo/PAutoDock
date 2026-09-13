@@ -12,13 +12,14 @@ go to "http://www.gnu.org/licenses/gpl-3.0.en.html"
 Provides the basic operation for MOL2 files in parallel
 
 """
+from __future__ import annotations
 
 import os
 import shutil
 from pathlib import Path
 
 
-def read_molname(filemol2: str):
+def read_molname(filemol2: str) -> str | None:
     f = open(filemol2, "r")
     molname = None
     next_is_name = False
@@ -33,8 +34,10 @@ def read_molname(filemol2: str):
     return molname
 
 
-def get_mol2_name(filemol2: str):
+def get_mol2_name(filemol2: str) -> str:
     molname = read_molname("tmp_")
+    if molname is None:
+        raise ValueError("Molecule name not found in tmp_")
     filename = molname + ".mol2"
     cc = 1
     while True:
@@ -46,8 +49,8 @@ def get_mol2_name(filemol2: str):
     return filename
 
 
-def split_mol2(mmol2, path="./"):
-    mol2splitted = []
+def split_mol2(mmol2: str, path: str = "./") -> list[str]:
+    mol2splitted: list[str] = []
     fmol2 = open(mmol2, "r")
     ftmp = open("tmp_", "w")
     firstmol = True
