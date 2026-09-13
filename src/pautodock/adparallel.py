@@ -52,10 +52,10 @@ class ADParallel(object):
         self.vina = True
         self.exhaustiveness = 32
         self.num_modes = 18
-        self.ph: float | None = None
+        self.ph: float | None = 7.4
         self.atdpath: str | None = None
         self.vinapath: str | None = None
-        self.mglpath: Path | None = None
+        self.mgl = False
 
     def _check_binaries(self) -> None:
         """
@@ -81,9 +81,10 @@ class ADParallel(object):
             msg += "is enabled (vina=ON). Use --vina OFF to skip it."
             raise ValueError(msg)
 
-        self.mglpath = Path(f"{Path.home()}/.pautodock/MGLTools")
-        if not self.mglpath.exists():
-            install_mgltools(f"{Path.home()}/.pautodock")
+        if self.mgl:
+            mglpath = Path(f"{Path.home()}/.pautodock/MGLTools")
+            if not mglpath.exists():
+                install_mgltools(f"{Path.home()}/.pautodock")
 
     def read_atom_types(self, rec_mol: str) -> tuple[str, list[str]]:
         """
@@ -444,9 +445,9 @@ class ADParallel(object):
     def virtual_screening(self, otab: str) -> None:
         self._check_binaries()
         assert self.receptor is not None
-        assert self.mglpath is not None
         # Prepare the receptor
-        rec = molop.Receptor(self.receptor, self.mglpath)
+        method = "mgltools" if self.mgl else "obabel"
+        rec = molop.Receptor(self.receptor, method=method)
         rec_pdbqt = rec.topdbqt()
         if self.ligand is not None:
             self.cx, self.cy, self.cz = molop.get_mol_baricentre(self.ligand)
@@ -476,7 +477,7 @@ class ADParallel(object):
                     shutil.move(str(Path(mol2).resolve()), mpath)
 
                 mol = molop.Molecule(
-                    str(Path(mpath + "/" + molname_ext).absolute()), self.mglpath
+                    str(Path(mpath + "/" + molname_ext).absolute())
                 )
                 mol_pdbqt = mol.topdbqt([self.cx, self.cy, self.cz], ph=self.ph)
                 mol_pdbqt_name = str(Path(mol_pdbqt).resolve().name)

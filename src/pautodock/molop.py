@@ -118,11 +118,53 @@ def read_active_torsions(pdbqt: str) -> int:
 
 
 class Receptor(object):
-    def __init__(self, receptor: str, mglpath: str | Path) -> None:
+    def __init__(self, receptor: str, method: str = "obabel") -> None:
+        if method not in ("obabel", "mgltools"):
+            raise ValueError("Unknown receptor preparation method %s" % (method))
         self.receptor = receptor
-        self.mglpath = str(Path(mglpath).resolve())
+        self.method = method
+        self.obabel_path = get_bin_path("obabel")
+        self.mglpath = str(Path(f"{Path.home()}/.pautodock/MGLTools").resolve())
 
     def topdbqt(self) -> str:
+        """
+        Convert the receptor to pdbqt. With the default "obabel"
+        method the hydrogens are added (the pdbqt writer keeps the
+        polar ones, which is the AutoDock convention), Gasteiger
+        charges are assigned and the water molecules are removed.
+        With the "mgltools" method the MGLTools prepare_receptor4.py
+        script is used instead.
+        """
+        if self.method == "mgltools":
+            return self._topdbqt_mgltools()
+        return self._topdbqt_obabel()
+
+    def _topdbqt_obabel(self) -> str:
+        obabel = Path(self.obabel_path) / "obabel"
+        pdbqt = self.receptor.replace(".pdb", ".pdbqt")
+        subprocess.run(
+            [
+                str(obabel),
+                "-ipdb",
+                self.receptor,
+                "-opdbqt",
+                "-h",
+                "--partialcharge",
+                "gasteiger",
+                "-O",
+                pdbqt,
+            ],
+            check=True,
+        )
+        self._remove_waters(pdbqt)
+        return str(Path(pdbqt).resolve())
+
+    def _topdbqt_mgltools(self) -> str:
+        if not Path(self.mglpath).exists():
+            msg = "MGLTools is not installed in %s. " % (self.mglpath)
+            msg += "Run pautodock with --mgl ON to install it, or use "
+            msg += "the default obabel receptor preparation."
+            raise ValueError(msg)
         python_env = (
             "export LD_LIBRARY_PATH=\"%s/lib\"${LD_LIBRARY_PATH:+':'$LD_LIBRARY_PATH};"
             % (self.mglpath)
@@ -136,11 +178,22 @@ class Receptor(object):
         subprocess.call([cmd], shell=True)
         return str(Path(pdbqt).resolve())
 
+    @staticmethod
+    def _remove_waters(pdbqt: str) -> None:
+        with open(pdbqt, "r", encoding="utf-8") as fi:
+            lines = fi.readlines()
+        with open(pdbqt, "w", encoding="utf-8") as fo:
+            for line in lines:
+                if ("ATOM" in line or "HETATM" in line) and (
+                    "HOH" in line[17:20] or "WAT" in line[17:20]
+                ):
+                    continue
+                fo.write(line)
+
 
 class Molecule(object):
-    def __init__(self, molecule: str, mglpath: str | Path) -> None:
+    def __init__(self, molecule: str) -> None:
         self.molecule = molecule
-        self.mglpath = str(Path(mglpath).resolve())
         self.obabel_path = get_bin_path("obabel")
 
     def topdbqt(

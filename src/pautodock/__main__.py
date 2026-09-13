@@ -42,7 +42,8 @@ class DockingConfig:
     vina_enabled: bool = True
     vina_exhaustiveness: int = 32
     vina_num_modes: int = 18
-    ph: Optional[float] = None
+    ph: Optional[float] = 7.4
+    mgltools_enabled: bool = False
 
 
 def parse_arguments() -> DockingConfig:
@@ -108,8 +109,15 @@ def parse_arguments() -> DockingConfig:
     dock_group.add_argument(
         "--ph",
         type=float,
-        default=None,
+        default=7.4,
         help="Protonate the ligands at this pH (ligands only, the receptor is not affected)",
+    )
+    dock_group.add_argument(
+        "--mgl",
+        type=str,
+        default="OFF",
+        choices=["ON", "OFF"],
+        help="Prepare the receptor with MGLTools instead of Open Babel",
     )
 
     args = parser.parse_args(sys.argv[1:])
@@ -151,6 +159,7 @@ def parse_arguments() -> DockingConfig:
         vina_exhaustiveness=args.exhaustiveness,
         vina_num_modes=args.num_modes,
         ph=args.ph,
+        mgltools_enabled=args.mgl == "ON",
     )
 
 
@@ -190,6 +199,7 @@ def main() -> int:
         dock.exhaustiveness = config.vina_exhaustiveness
         dock.num_modes = config.vina_num_modes
         dock.ph = config.ph
+        dock.mgl = config.mgltools_enabled
 
         # Run virtual screening
         dock.virtual_screening(config.output_path)

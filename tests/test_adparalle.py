@@ -36,6 +36,8 @@ def test_init(ad_parallel):
     assert ad_parallel.speed == "fast"
     assert ad_parallel.atd is True
     assert ad_parallel.vina is True
+    assert ad_parallel.mgl is False
+    assert ad_parallel.ph == 7.4
 
 
 def test_read_atom_types(ad_parallel, tmp_path):

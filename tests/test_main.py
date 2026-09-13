@@ -24,9 +24,9 @@ def _argv(*extra):
     ] + list(extra)
 
 
-def test_ph_default_is_none():
+def test_ph_default_is_74():
     with patch.object(sys, "argv", _argv()):
-        assert parse_arguments().ph is None
+        assert parse_arguments().ph == 7.4
 
 
 def test_ph_option():
@@ -38,3 +38,13 @@ def test_ph_out_of_range():
     with patch.object(sys, "argv", _argv("--ph", "20")):
         with pytest.raises(SystemExit):
             parse_arguments()
+
+
+def test_mgl_default_is_off():
+    with patch.object(sys, "argv", _argv()):
+        assert parse_arguments().mgltools_enabled is False
+
+
+def test_mgl_option():
+    with patch.object(sys, "argv", _argv("--mgl", "ON")):
+        assert parse_arguments().mgltools_enabled is True
