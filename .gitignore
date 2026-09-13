@@ -46,3 +46,4 @@ coverage.xml
 *.kdev4
 __pycache__/
 example_calculation/
+example_calculation*/

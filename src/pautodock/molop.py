@@ -131,9 +131,12 @@ class Receptor(object):
         Convert the receptor to pdbqt. With the default "obabel"
         method the hydrogens are added (the pdbqt writer keeps the
         polar ones, which is the AutoDock convention), Gasteiger
-        charges are assigned and the water molecules are removed.
-        With the "mgltools" method the MGLTools prepare_receptor4.py
-        script is used instead.
+        charges are assigned, the water molecules are removed and
+        the ligand-style tree records (ROOT/BRANCH/TORSDOF) are
+        stripped, replicating what the MGLTools prepare_receptor4.py
+        script writes for a rigid receptor. With the "mgltools"
+        method the MGLTools prepare_receptor4.py script is used
+        instead.
         """
         if self.method == "mgltools":
             return self._topdbqt_mgltools()
@@ -156,7 +159,7 @@ class Receptor(object):
             ],
             check=True,
         )
-        self._remove_waters(pdbqt)
+        self._clean_pdbqt(pdbqt)
         return str(Path(pdbqt).resolve())
 
     def _topdbqt_mgltools(self) -> str:
@@ -179,14 +182,22 @@ class Receptor(object):
         return str(Path(pdbqt).resolve())
 
     @staticmethod
-    def _remove_waters(pdbqt: str) -> None:
+    def _clean_pdbqt(pdbqt: str) -> None:
+        """
+        Replicate the prepare_receptor4.py output for a rigid
+        receptor: keep only the ATOM/HETATM records. Open Babel
+        additionally writes REMARK lines and ligand-style tree
+        records (ROOT/BRANCH/TORSDOF) that the rigid receptor
+        parsers of vina and AutoGrid reject, and the water
+        molecules are not part of the docking model.
+        """
         with open(pdbqt, "r", encoding="utf-8") as fi:
             lines = fi.readlines()
         with open(pdbqt, "w", encoding="utf-8") as fo:
             for line in lines:
-                if ("ATOM" in line or "HETATM" in line) and (
-                    "HOH" in line[17:20] or "WAT" in line[17:20]
-                ):
+                if not line.startswith(("ATOM", "HETATM")):
+                    continue
+                if "HOH" in line[17:20] or "WAT" in line[17:20]:
                     continue
                 fo.write(line)
 

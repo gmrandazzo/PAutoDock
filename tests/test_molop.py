@@ -123,8 +123,14 @@ def test_receptor_topdbqt(tmp_path):
     ) + "  1.00  0.00           C\n")
     pdbqt = tmp_path / "test.pdbqt"
     pdbqt.write_text(
+        "REMARK  Name = test\n"
+        "ROOT\n"
         "ATOM      1  CA  ALA A   1      " + "%8.3f%8.3f%8.3f" % (1.0, 2.0, 3.0) + "  1.00  0.00           C\n"  # noqa: E501
+        "ENDROOT\n"
+        "BRANCH   1   2\n"
         "HETATM    2  O   HOH A 200      " + "%8.3f%8.3f%8.3f" % (4.0, 5.0, 6.0) + "  1.00  0.00    -0.834 OA\n"  # noqa: E501
+        "ENDBRANCH\n"
+        "TORSDOF 0\n"
     )
     with patch("pautodock.molop.get_bin_path", return_value="/usr/bin/"):
         receptor = Receptor(str(rec))
@@ -132,10 +138,15 @@ def test_receptor_topdbqt(tmp_path):
             result = receptor.topdbqt()
             mock_run.assert_called_once()
     assert result.endswith("test.pdbqt")
-    # the water molecule must be stripped from the receptor pdbqt
+    # only the ATOM record must survive: the water molecule, the
+    # REMARK lines and the ligand-style tree records are stripped,
+    # like in the prepare_receptor4.py output
     lines = pdbqt.read_text().splitlines()
-    assert len(lines) == 1
-    assert "HOH" not in lines[0]
+    assert lines == [
+        "ATOM      1  CA  ALA A   1      "
+        + "%8.3f%8.3f%8.3f" % (1.0, 2.0, 3.0)
+        + "  1.00  0.00           C",
+    ]
 
 
 def test_receptor_mgltools_method(tmp_path):
