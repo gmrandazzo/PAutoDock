@@ -186,7 +186,7 @@ def molecule():
     elif system == "Darwin":
         patch_value = "/opt/homebrew/bin/"
 
-    with patch("pautodock.fileutils.get_bin_path", return_value=patch_value):
+    with patch("pautodock.molop.get_bin_path", return_value=patch_value):
         return Molecule("test.mol2")
 
 
