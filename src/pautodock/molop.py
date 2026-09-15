@@ -57,8 +57,7 @@ def get_mol_baricentre(mol: str) -> list[float]:
         ftype = "pdb"
     else:
         raise ValueError(
-            "Molecule format not supported %s. Supported formats: pdb or pdbqt"
-            % (mol)
+            "Molecule format not supported %s. Supported formats: pdb or pdbqt" % (mol)
         )
 
     with open(mol, "r", encoding="utf-8") as f:

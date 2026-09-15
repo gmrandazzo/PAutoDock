@@ -116,19 +116,28 @@ def test_receptor_init(receptor):
 
 def test_receptor_topdbqt(tmp_path):
     rec = tmp_path / "test.pdb"
-    rec.write_text("ATOM      1  CA  ALA A   1      " + "%8.3f%8.3f%8.3f" % (
-        1.0,
-        2.0,
-        3.0,
-    ) + "  1.00  0.00           C\n")
+    rec.write_text(
+        "ATOM      1  CA  ALA A   1      "
+        + "%8.3f%8.3f%8.3f"
+        % (
+            1.0,
+            2.0,
+            3.0,
+        )
+        + "  1.00  0.00           C\n"
+    )
     pdbqt = tmp_path / "test.pdbqt"
     pdbqt.write_text(
         "REMARK  Name = test\n"
         "ROOT\n"
-        "ATOM      1  CA  ALA A   1      " + "%8.3f%8.3f%8.3f" % (1.0, 2.0, 3.0) + "  1.00  0.00           C\n"  # noqa: E501
+        "ATOM      1  CA  ALA A   1      "
+        + "%8.3f%8.3f%8.3f" % (1.0, 2.0, 3.0)
+        + "  1.00  0.00           C\n"
         "ENDROOT\n"
         "BRANCH   1   2\n"
-        "HETATM    2  O   HOH A 200      " + "%8.3f%8.3f%8.3f" % (4.0, 5.0, 6.0) + "  1.00  0.00    -0.834 OA\n"  # noqa: E501
+        "HETATM    2  O   HOH A 200      "
+        + "%8.3f%8.3f%8.3f" % (4.0, 5.0, 6.0)
+        + "  1.00  0.00    -0.834 OA\n"
         "ENDBRANCH\n"
         "TORSDOF 0\n"
     )

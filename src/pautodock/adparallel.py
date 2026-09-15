@@ -124,9 +124,7 @@ class ADParallel(object):
         npts_z = int(round(self.gsize_z / spacing))
         # write the GPF
         f = open(path + "/grid.gpf", "w")
-        f.write(
-            "npts %d %d %d # num.grid points in xyz\n" % (npts_x, npts_y, npts_z)
-        )
+        f.write("npts %d %d %d # num.grid points in xyz\n" % (npts_x, npts_y, npts_z))
         f.write("gridfld %s/receptor_model.maps.fld     # grid_data_file\n" % (path_))
         f.write("spacing %g # spacing(A)\n" % (spacing))
         f.write("receptor_types %s # receptor atom types\n" % (rat_str))
@@ -225,9 +223,7 @@ class ADParallel(object):
         ind_path = Path(path + "/ind.dpf").absolute()
         return grid_path, ind_path
 
-    def write_vina_param_files(
-        self, path: str, cc: list[float], ss: list[int]
-    ) -> Path:
+    def write_vina_param_files(self, path: str, cc: list[float], ss: list[int]) -> Path:
         vina_conf_path = Path(path) / "vina_conf.txt"
         with vina_conf_path.open("w", encoding="utf8") as f:
             f.write(f"center_x = {cc[0]:.4f}\n")
@@ -476,9 +472,7 @@ class ADParallel(object):
                 if not Path(mpath + "/" + molname_ext).exists():
                     shutil.move(str(Path(mol2).resolve()), mpath)
 
-                mol = molop.Molecule(
-                    str(Path(mpath + "/" + molname_ext).absolute())
-                )
+                mol = molop.Molecule(str(Path(mpath + "/" + molname_ext).absolute()))
                 mol_pdbqt = mol.topdbqt([self.cx, self.cy, self.cz], ph=self.ph)
                 mol_pdbqt_name = str(Path(mol_pdbqt).resolve().name)
                 if self.atd:
