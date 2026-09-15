@@ -12,6 +12,7 @@ go to "http://www.gnu.org/licenses/gpl-3.0.en.html"
 Provides the basic operation for molecular files.
 
 """
+from __future__ import annotations
 
 import logging
 import platform
@@ -21,7 +22,7 @@ from pathlib import Path
 from pautodock.fileutils import download_file, extract_tar_gz
 
 
-def install_mgltools(dir: str):
+def install_mgltools(dir: str) -> bool:
     """
     Install MGLTools from the official website.
     """

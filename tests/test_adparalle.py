@@ -16,12 +16,13 @@ def ad_parallel():
     elif system == "Darwin":
         patch_value = "/opt/homebrew/bin/"
 
-    with patch("pautodock.fileutils.get_bin_path", return_value=patch_value):
-        receptor = "path/to/receptor.pdb"
-        ligand = "path/to/ligand.mol2"
-        db = "path/to/database.mol2"
-        wpath = tempfile.mkdtemp()
-        return ADParallel(receptor, ligand, db, wpath)
+    with patch("pautodock.adparallel.get_bin_path", return_value=patch_value):
+        with patch("pautodock.adparallel.install_mgltools"):
+            receptor = "path/to/receptor.pdb"
+            ligand = "path/to/ligand.mol2"
+            db = "path/to/database.mol2"
+            wpath = tempfile.mkdtemp()
+            return ADParallel(receptor, ligand, db, wpath)
 
 
 def test_init(ad_parallel):
@@ -32,9 +33,11 @@ def test_init(ad_parallel):
     assert ad_parallel.gsize_x == 30
     assert ad_parallel.gsize_y == 30
     assert ad_parallel.gsize_z == 30
-    assert ad_parallel.speed == "slow"
+    assert ad_parallel.speed == "fast"
     assert ad_parallel.atd is True
     assert ad_parallel.vina is True
+    assert ad_parallel.mgl is False
+    assert ad_parallel.ph == 7.4
 
 
 def test_read_atom_types(ad_parallel, tmp_path):
@@ -68,6 +71,33 @@ def test_write_vina_param_files(ad_parallel, tmp_path):
         assert "size_z = 30" in content
 
 
+def test_write_autodock_param_files_speed_modes(ad_parallel, tmp_path):
+    rec_pdbqt = tmp_path / "rec.pdbqt"
+    rec_pdbqt.write_text(
+        "ATOM      1  CA  TYR A1161     -10.160  10.285   7.878  1.00 56.11     0.191 C\n"  # noqa: E501
+    )
+    mol_pdbqt = tmp_path / "mol.pdbqt"
+    mol_pdbqt.write_text(
+        "REMARK  2 active torsions:\n"
+        "ATOM      1  CA  TYR A1161     -10.160  10.285   7.878  1.00 56.11     0.191 C\n"  # noqa: E501
+    )
+    for speed, evals in [
+        ("fast", "ga_num_evals 250000 "),
+        ("normal", "ga_num_evals 2500000 "),
+        ("thorough", "ga_num_evals 25000000 "),
+    ]:
+        ad_parallel.speed = speed
+        gpf_path, dpf_path = ad_parallel.write_autodock_param_files(
+            str(tmp_path), str(rec_pdbqt), mol_pdbqt.name, [0.0, 0.0, 0.0]
+        )
+        with open(dpf_path, "r") as f:
+            dpf = f.read()
+        assert evals in dpf
+        assert "torsdof 2 " in dpf
+        with open(gpf_path, "r") as f:
+            assert "npts 91 91 91" in f.read()
+
+
 def test_read_vina_output(ad_parallel, tmp_path):
     vina_out = tmp_path / "vina_out.txt"
     vina_out.write_text(
@@ -84,3 +114,27 @@ def test_read_vina_output(ad_parallel, tmp_path):
     assert abs(-8.986 - avg) < 1e-4
     assert (-9.317 - min_val) < 1e-4
     assert (-8.819 - max_val) < 1e-4
+
+
+def test_read_vina_output_appended_log(ad_parallel, tmp_path):
+    # A resumed run appends a whole new table to the log: only the
+    # last table must be parsed, so the averages match the written
+    # docking poses.
+    vina_out = tmp_path / "vina_out.txt"
+    vina_out.write_text(
+        "AutoDock Vina v1.2.3\n"
+        "-----+------------+----------+----------\n"
+        "   1       -5.000          0          0\n"
+        "Writing output ... done.\n"
+        "AutoDock Vina v1.2.3\n"
+        "-----+------------+----------+----------\n"
+        "   1       -9.317          0          0\n"
+        "   2       -8.823      3.083      9.394\n"
+        "Writing output ... done.\n"
+    )
+
+    avg, min_val, max_val = ad_parallel.read_vina_output(str(vina_out))
+
+    assert abs(-9.07 - avg) < 1e-4
+    assert abs(-9.317 - min_val) < 1e-4
+    assert abs(-8.823 - max_val) < 1e-4

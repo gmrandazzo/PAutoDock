@@ -17,10 +17,11 @@ import os
 import sys
 from pathlib import Path
 
+from pautodock import molop
 from pautodock.adparallel import ADParallel
 
 
-def main():
+def main() -> None:
     """
     main.py
     """
@@ -31,12 +32,13 @@ def main():
     args = p.parse_args(sys.argv[1:])
 
     if args.wdir is None or args.out is None:
-        print("\nUsage: %s --receptor [input pdb]" % sys.argv[0])
-        print("                --wdir [work path]")
+        print("\nUsage: %s --wdir [work path]" % sys.argv[0])
         print("                --ligand [ligand PDB]")
         print("                --out [screening output]")
     else:
-        dock = ADParallel("", None, None, args.ligand, None, args.wdir)
+        dock = ADParallel(None, args.ligand, None, args.wdir)
+        if args.ligand is not None:
+            dock.cx, dock.cy, dock.cz = molop.get_mol_baricentre(args.ligand)
         vinalogout = []
         dpfout = []
         mnames = []

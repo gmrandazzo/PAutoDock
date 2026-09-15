@@ -36,12 +36,14 @@ class DockingConfig:
     grid_x: int = 30
     grid_y: int = 30
     grid_z: int = 30
-    screening_mode: str = "slow"
+    screening_mode: str = "fast"
     output_path: str = "output.txt"
     autodock_enabled: bool = False
     vina_enabled: bool = True
     vina_exhaustiveness: int = 32
     vina_num_modes: int = 18
+    ph: Optional[float] = 7.4
+    mgltools_enabled: bool = False
 
 
 def parse_arguments() -> DockingConfig:
@@ -70,9 +72,15 @@ def parse_arguments() -> DockingConfig:
     grid_group.add_argument("--cx", type=float, help="Grid center X coordinate")
     grid_group.add_argument("--cy", type=float, help="Grid center Y coordinate")
     grid_group.add_argument("--cz", type=float, help="Grid center Z coordinate")
-    grid_group.add_argument("--gx", type=int, default=30, help="Grid size X")
-    grid_group.add_argument("--gy", type=int, default=30, help="Grid size Y")
-    grid_group.add_argument("--gz", type=int, default=30, help="Grid size Z")
+    grid_group.add_argument(
+        "--gx", type=int, default=30, help="Grid size X (in Angstrom)"
+    )
+    grid_group.add_argument(
+        "--gy", type=int, default=30, help="Grid size Y (in Angstrom)"
+    )
+    grid_group.add_argument(
+        "--gz", type=int, default=30, help="Grid size Z (in Angstrom)"
+    )
 
     # Docking configuration
     dock_group = parser.add_argument_group("Docking Configuration")
@@ -98,6 +106,19 @@ def parse_arguments() -> DockingConfig:
     dock_group.add_argument(
         "--num_modes", type=int, default=18, help="Number of binding modes to generate"
     )
+    dock_group.add_argument(
+        "--ph",
+        type=float,
+        default=7.4,
+        help="Protonate the ligands at this pH (ligands only, the receptor is not affected)",
+    )
+    dock_group.add_argument(
+        "--mgl",
+        type=str,
+        default="OFF",
+        choices=["ON", "OFF"],
+        help="Prepare the receptor with MGLTools instead of Open Babel",
+    )
 
     args = parser.parse_args(sys.argv[1:])
 
@@ -111,10 +132,14 @@ def parse_arguments() -> DockingConfig:
         parser.error("Either --ligand or --db must be provided")
 
     # Validate grid center coordinates when no ligand is provided
-    if not args.ligand and not all([args.cx, args.cy, args.cz]):
+    if not args.ligand and any(c is None for c in (args.cx, args.cy, args.cz)):
         parser.error(
             "Grid center coordinates (--cx, --cy, --cz) are required when no ligand is provided"
         )
+
+    # Validate the protonation pH
+    if args.ph is not None and not 0.0 <= args.ph <= 14.0:
+        parser.error("--ph must be between 0.0 and 14.0")
 
     return DockingConfig(
         receptor=args.receptor,
@@ -133,6 +158,8 @@ def parse_arguments() -> DockingConfig:
         vina_enabled=args.vina == "ON",
         vina_exhaustiveness=args.exhaustiveness,
         vina_num_modes=args.num_modes,
+        ph=args.ph,
+        mgltools_enabled=args.mgl == "ON",
     )
 
 
@@ -156,6 +183,9 @@ def main() -> int:
 
         # Configure docking parameters
         if config.ligand is None:
+            assert config.center_x is not None
+            assert config.center_y is not None
+            assert config.center_z is not None
             dock.cx = config.center_x
             dock.cy = config.center_y
             dock.cz = config.center_z
@@ -168,6 +198,8 @@ def main() -> int:
         dock.gsize_z = config.grid_z
         dock.exhaustiveness = config.vina_exhaustiveness
         dock.num_modes = config.vina_num_modes
+        dock.ph = config.ph
+        dock.mgl = config.mgltools_enabled
 
         # Run virtual screening
         dock.virtual_screening(config.output_path)

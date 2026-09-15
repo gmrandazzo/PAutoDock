@@ -71,3 +71,14 @@ To use PAutodock for parallelizing AutoDock jobs, follow these steps:
    ```bash
    cd data/3EML
    pautodock --receptor rec.pdb --cx -9.06364 --cy -7.1446 --cz 55.8626 --db dataset.mol2 --wdir example_calculation --out screening_results.csv --vina ON --atd OFF
+   ```
+
+   The ligands are protonated at physiological pH 7.4 by default. Use the `--ph` option to modify the protonation pH if you want:
+
+   ```bash
+   pautodock --receptor rec.pdb --cx -9.06364 --cy -7.1446 --cz 55.8626 --db dataset.mol2 --wdir example_calculation --out screening_results.csv --ph 6.5
+   ```
+
+   The `--ph` option affects the ligands only; the receptor is never protonated.
+
+   By default the receptor is prepared with Open Babel, with no extra dependency. If you prefer the MGLTools `prepare_receptor4.py` script, pass `--mgl ON` — MGLTools will be downloaded and installed into `~/.pautodock` on first use.
