@@ -1,84 +1,123 @@
-# PAutodock - Parallelize AutoDock JOBs
+# PAutodock
 
-PAutodock is a powerful set of scripts designed to parallelize AutoDock jobs, enabling fast screening across multiple CPUs. This tool is particularly useful for researchers and scientists working in computational biology and drug discovery, allowing them to efficiently manage and execute docking simulations.
+PAutodock parallelizes molecular docking jobs: it screens a library of
+small molecules against a protein receptor with AutoDock Vina and/or
+AutoDock4, spreading the calculations over all the CPUs of the machine,
+and collects the binding results in a single CSV table.
 
-## Table of Contents
+For every molecule of the input database, PAutodock prepares the ligand
+with Open Babel (3D coordinates, Gasteiger partial charges, protonation
+at a given pH), prepares the receptor, runs the selected docking engine
+in a dedicated working directory and appends one row per molecule with
+the binding energies and a geometric pose check. Molecules that already
+have results are skipped, so an interrupted screening can simply be
+re-run to continue where it stopped.
 
-- [License](#license)
-- [Dependencies](#dependencies)
-- [Changelog](#changelog)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [Contact](#contact)
+## Features
 
-## License
+- Parallel docking across all available CPUs.
+- Two docking engines, selectable independently: AutoDock Vina and
+  AutoDock4 (AutoGrid4 + AutoDock4).
+- Ligand protonation at a chosen pH with Open Babel (default pH 7.4).
+- Receptor preparation with Open Babel by default; the MGLTools
+  `prepare_receptor4.py` script remains available with `--mgl ON`.
+- Screening of multi-mol2 databases or of a single ligand.
+- Resumable screenings: molecules with existing results are skipped.
+- Results table with the binding energies of every molecule and the
+  distance between the expected centre and the baricentre of the best
+  docking pose, as a sanity check.
+- Companion command line tools: `pautodock-recover-output` rebuilds a
+  results table from a working directory, and
+  `pautodock-autogridmap2dx` converts AutoGrid maps to OpenDX format
+  for visualization.
 
-PAutodock is distributed under the GPLv3 license. For detailed information on how the license works, please refer to the file "LICENSE" or visit [GNU GPLv3 License](http://www.gnu.org/licenses/gpl-3.0.en.html).
+## Requirements
 
-Copyright © Giuseppe Marco Randazzo <gmrandazzo@gmail.com>
-
-## Dependencies
-
-To run PAutodock, you will need the following software installed:
-
-- [AutoDock](http://autodock.scripps.edu/)
-- [AutoGrid](http://autodock.scripps.edu/resources/autogrid)
-- [AutoDock Vina](http://vina.scripps.edu/)
-- [OpenBabel](http://openbabel.org/index.html)
-
-Ensure that these dependencies are properly installed and accessible from your command line.
-
-## Changelog
-
-- **2024**: Revamp in a more organized form
-- **2022**: First time online
-- **2017**: Initial release
+- Python >= 3.10
+- Open Babel
+- AutoDock Vina (to run Vina)
+- AutoDock4 and AutoGrid4 (to run AutoDock4)
+- MGLTools (only with `--mgl ON`)
 
 ## Installation
 
-Install from pip
+From PyPI:
 
-```
-pip install pautodock
-```
+    pip install pautodock
 
-or clone and install from source
+From source:
 
-```
-git clone https://github.com/gmrandazzo/PAutoDock.git
-cd PAutoDock
-poetry install
-```
+    git clone https://github.com/gmrandazzo/PAutoDock.git
+    cd PAutoDock
+    poetry install
 
 ## Usage
 
-To use PAutodock for parallelizing AutoDock jobs, follow these steps:
+Prepare a receptor in PDB format and a database of ligands as a single
+multi-mol2 file (3D coordinates, Gasteiger partial charges and a unique
+name per molecule), then run for example:
 
-1. **Prepare the Receptor and Ligand**:
-   - Ensure you have a receptor file (in PDB format) that represents the target protein or enzyme.
-   - Prepare a ligand file (also in PDB format) that contains the molecule you want to dock with the receptor.
+    cd data/3EML
+    pautodock --receptor rec.pdb --cx -9.06364 --cy -7.1446 --cz 55.8626 \
+        --db dataset.mol2 --wdir example_calculation \
+        --out screening_results.csv --vina ON --atd OFF
 
-2. **Create a Multimol2 File**:
-   - Prepare a multimol2 file that includes all the ligands you wish to screen.
-   - Each ligand in the file must have:
-     - **Partial Charges**: Ensure that the ligands have Gasteiger partial charges assigned.
-     - **3D Coordinates**: The ligands should be represented in 3D space.
-     - **Unique Names**: Each molecule must have a unique name to avoid conflicts during the screening process.
+The ligands are protonated at pH 7.4 by default; use `--ph` to change
+it. The option affects the ligands only, the receptor is never
+protonated.
 
-3. **Execute the Command**:
-   - Once your receptor and multimol2 file are ready, execute the following command in your terminal:
+The main command line options:
 
-   ```bash
-   cd data/3EML
-   pautodock --receptor rec.pdb --cx -9.06364 --cy -7.1446 --cz 55.8626 --db dataset.mol2 --wdir example_calculation --out screening_results.csv --vina ON --atd OFF
-   ```
+| Option             | Default   | Description                                                        |
+| ------------------ | --------- | ------------------------------------------------------------------ |
+| `--receptor`       | required  | receptor PDB file                                                  |
+| `--db`             |           | multi-mol2 database to screen                                      |
+| `--ligand`         |           | single ligand (PDB or mol2); the grid centre is its baricentre     |
+| `--cx --cy --cz`   |           | grid centre (required when `--ligand` is not given)                |
+| `--gx --gy --gz`   | 30        | grid size in Angstrom                                              |
+| `--vina`           | ON        | run AutoDock Vina                                                  |
+| `--atd`            | OFF       | run AutoDock4                                                      |
+| `--smode`          | fast      | AutoDock4 screening mode: fast, normal, thorough                   |
+| `--exhaustiveness` | 32        | Vina exhaustiveness                                                |
+| `--num_modes`      | 18        | number of Vina binding modes                                       |
+| `--ph`             | 7.4       | protonation pH of the ligands                                      |
+| `--mgl`            | OFF       | prepare the receptor with MGLTools instead of Open Babel           |
+| `--out`            | output.txt| results table                                                      |
+| `--wdir`           | required  | working directory                                                  |
 
-   The ligands are protonated at physiological pH 7.4 by default. Use the `--ph` option to modify the protonation pH if you want:
+## Output
 
-   ```bash
-   pautodock --receptor rec.pdb --cx -9.06364 --cy -7.1446 --cz 55.8626 --db dataset.mol2 --wdir example_calculation --out screening_results.csv --ph 6.5
-   ```
+The results table is a semicolon-delimited CSV with one row per
+molecule: the AutoDock4 free energy terms when `--atd ON` (partition
+function, free energy, internal energy, entropy and the cluster
+averages), and the average, minimum and maximum Vina binding energy
+together with the template-ligand baricentre distance of the best pose.
 
-   The `--ph` option affects the ligands only; the receptor is never protonated.
+## Companion tools
 
-   By default the receptor is prepared with Open Babel, with no extra dependency. If you prefer the MGLTools `prepare_receptor4.py` script, pass `--mgl ON` — MGLTools will be downloaded and installed into `~/.pautodock` on first use.
+Rebuild a lost results table from a working directory:
+
+    pautodock-recover-output --wdir example_calculation --out results.csv
+
+Convert an AutoGrid map to OpenDX (for example for PyMOL):
+
+    pautodock-autogridmap2dx --map path/to/receptor_model.OA.map --dx map.dx
+
+## Changelog
+
+- 2026: version 1.1.0. Ligand protonation at pH 7.4 by default,
+  receptor preparation with Open Babel (MGLTools optional), fixed
+  coordinate handling and result parsing, strict type checking,
+  automated releases.
+- 2024: revamp in a more organized form.
+- 2022: first release on PyPI.
+- 2017: initial release.
+
+## License
+
+PAutodock is distributed under the GNU General Public License v3 or
+later. Copyright (C) Giuseppe Marco Randazzo <gmrandazzo@gmail.com>
+
+## Development
+
+See [DEVELOPMENT.md](DEVELOPMENT.md).
